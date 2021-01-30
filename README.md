@@ -1,0 +1,2 @@
+# zadapter
+会与zconn、heartbreating联合使用，从而学习并实现一种基于tcp长连接的设计思路
