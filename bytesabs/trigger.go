@@ -1,5 +1,5 @@
 /*触发器*/    /*如心跳包*/
-package bytes
+package bytesabs
 
 type triggerAbstractFunc func() TriggerAbstract
 

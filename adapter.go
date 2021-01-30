@@ -27,10 +27,6 @@ func BuildAdapter(Name string){
 	}
 }
 
-type AdapterAbstract interface {
-	Name() string
-	Init(config Config) error
-}
 
 type Config interface {
 	Name() string

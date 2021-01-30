@@ -1,5 +1,5 @@
 /*拦截器*/    /*如CRC校验*/
-package bytes
+package bytesabs
 
 type interceptorAbstractFunc func() InterceptorAbstract
 
