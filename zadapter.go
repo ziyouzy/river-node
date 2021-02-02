@@ -27,7 +27,3 @@ func BuildAdapter(Name string){
 	}
 }
 
-
-type Config interface {
-	Name() string
-}
