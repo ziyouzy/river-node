@@ -20,19 +20,17 @@ package heartbeating
 
 import (
 
-	logger "github.com/phachon/go-logger"
+	//logger "github.com/phachon/go-logger"
+	"zadapter"
+	"zadapter/define"
 
 	"fmt"
-	"strconv"
 	"time"
+	"reflect"
+	"errors"
 )
 
-const HEARTBEATING_ADAPTER_NAME = "heartbeating"
-
-const (
-	HEARTBREATING_NORMAL = iota
-	HEARTBREATING_TIMEOUT
-)
+const ADAPTER_NAME = "heartbeating"
 
 
 
@@ -40,7 +38,7 @@ type HeartBeatingConfig struct{
 
 	timeout time.Duration
 
-	UniqueId string	/*其所属上层Conn的唯一识别标识*/
+	uniqueId string	/*其所属上层Conn的唯一识别标识*/
 	
 	signalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
@@ -50,37 +48,53 @@ type HeartBeatingConfig struct{
 	 * 使用struct{}作为事件的传递介质
 	 */
 
-	slotChan chan []byte 
+	slotChan chan struct{} 
 
-	log *logger.Logger
+	//l *logger.Logger
 }
 
 func (p *HeartBeatingConfig)Name()string{
-	return HEARTBEATING_ADAPTER_NAME
+	return ADAPTER_NAME
 }
 
 
 
 type HeartBeating struct{
 	//timeout time.Second
-	timer time.timer
+	timer *time.Timer
 
 	//sl []byte
 
-	config HeartBeatingConfig
+	config *HeartBeatingConfig
 }
 
 func (p *HeartBeating)Name()string{
-	return HEARTBEATING_ADAPTER_NAME
+	return ADAPTER_NAME
 }
 
-func (p *HeartBeating)Init(heartBeatingConfigAbs Config){
+func (p *HeartBeating)Init(heartBeatingConfigAbs zadapter.Config) error{
+	if heartBeatingConfigAbs.Name() != ADAPTER_NAME {
+		return errors.New("heartbeating adapter init error, config must HeartBreatingConfig")
+	}
+
 
 	vhb := reflect.ValueOf(heartBeatingConfigAbs)
 	chb := vhb.Interface().(*HeartBeatingConfig)
 
-	p.config = chb
+
+	if chb.timeout == (0 * time.Second) || chb.uniqueId == "" {
+		return errors.New("heartbeating adapter init error, timeout or uniqueId is nil")
+	}
+
+	if chb.signalChan == nil || chb.slotChan == nil{
+		return errors.New("heartbeating adapter init error, slotChan or signalChan is nil")
+	}
 	
+	
+	p.config = chb
+
+
+	return nil
 }
 
 
@@ -94,7 +108,7 @@ func (p *HeartBeating)Run(){
 		 * timer被下方携程引用，生命周期100%由下方携程匿名函数的生命周期决定 
 		 */
 		  
-		p.timer := time.NewTimer(p.config.timeout)
+		p.timer = time.NewTimer(p.config.timeout)
 	}
 
 
@@ -123,35 +137,51 @@ func (p *HeartBeating)Run(){
 
 		for {
 			select {
-			case <-p.time.C:
+			case <-p.timer.C:
 				
-				p.config.signalChan<-HEARTBREATING_TIMEOUT
+				p.config.signalChan<-define.HEARTBREATING_TIMEOUT
 
-				p.config.logger.Warning(fmt.Sprintln("UniqueId为 %s 的链接超时，"+
-													 "心跳包模块会自动做好析构工作"+
-													 "但不会干预上层套接字Conn的业务逻辑与销毁", 
-													 p.config.UniqueId))
+				// p.config.logger.Warning(fmt.Sprintln("UniqueId为 %s 的链接超时，"+
+				// 									 "心跳包模块会自动做好析构工作"+
+				// 									 "但不会干预上层套接字Conn的业务逻辑与销毁", 
+				// 									 p.config.UniqueId))
 				return
 
 			case <-p.config.slotChan:
 
 				/*Reset一个timer前必须先正确的关闭它*/
-				if timer.Stop == STOP_AFTER_EXPIRE{ 
-					p.config.logger.Warning("当心跳包进行timer的Reset操作时与timer自身的到期事件"+
-											"发生了race condition（竞争条件之下心跳事件发生在前")
-					_ <-timer.C 
+				if p.timer.Stop() == define.STOP_AFTER_EXPIRE{ 
+				// 	p.config.logger.Warning("当心跳包进行timer的Reset操作时与timer自身的到期事件"+
+				// 							"发生了race condition（竞争条件之下心跳事件发生在前")
+					fmt.Println("2.1")
+			    	_ = <-p.timer.C 
 				}
 				
 				/*正式Reset*/
-				timer.Reset(p.config.timeout)
+				p.timer.Reset(p.config.timeout)
 
-				p.config.signalChan<-HEARTBREATING_NORMAL
+				p.config.signalChan<-define.HEARTBREATING_NORMAL
+				fmt.Println("4,time is:",time.Now().Second())
 			}
 		}
 	}()		
 }
 
 
+
+/** 由于通信管道的存在似乎就无法为其设计初始化默认值的操作了
+ * 但这个函数也是必须的，因为上层一定会遍历各个map
+ * 从而识别并确认都有哪些已经注册并在册的预编译适配器
+ */
+
+func NewHeartbBreating() zadapter.AdapterAbstract {
+	return &HeartBeating{}
+}
+
+
+func init() {
+	zadapter.Register(ADAPTER_NAME, NewHeartbBreating)
+}
 	
 
 

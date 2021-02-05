@@ -1,4 +1,4 @@
-package heartbeating
+package zadapter
 
 import(
 	"runtime"

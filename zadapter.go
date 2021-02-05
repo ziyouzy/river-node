@@ -1,5 +1,3 @@
-
-
 /** 此包的职能边界是将存在的各种类型(字节切片、NodeDoAbs)
  * 与其所需的各类适配器(拦截器、过滤器、验证器、触发器等)
  * 进行合理的匹配、部署、预加载(类似)
@@ -19,11 +17,67 @@
 
 package zadapter
 
+// /*触发器*/
+// var Triggers = make(map[string]triggerAbstractFunc)
+// func TriggerRegister(Name string, F triggerAbstractFunc) {
+// 	if Triggers[Name] != nil {
+// 		//panic("logger: logger adapter " + adapterName + " already registered!")
+// 	}
+	
+// 	if F == nil {
+// 		//panic("logger: logger adapter " + adapterName + " is nil!")
+// 	}
 
-func BuildAdapter(Name string){
-	switch Name{
-	default:
-		fmt.Println("Adapter Name:", Name)
+// 	Triggers[Name] = F
+// }
+
+
+// /*拦截器*/
+// var Interceptors = make(map[string]interceptorAbstractFunc)
+// func InterceptorRegister(Name string, F interceptorAbstractFunc) {
+// 	if Interceptors[Name] != nil {
+// 		//panic("logger: logger adapter " + adapterName + " already registered!")
+// 	}
+	
+// 	if F == nil {
+// 		//panic("logger: logger adapter " + adapterName + " is nil!")
+// 	}
+
+// 	Interceptors[Name] = F
+// }
+
+
+// func BuildAdapter(Name string){
+// 	switch Name{
+// 	default:
+// 		fmt.Println("Adapter Name:", Name)
+// 	}
+// }
+
+
+
+
+type adapterAbstractFunc func() AdapterAbstract
+
+type AdapterAbstract interface {
+	Name() string
+	Init(config Config) error
+	Run()
+}
+
+
+var Adapters = make(map[string]adapterAbstractFunc)
+
+
+func Register(Name string, F adapterAbstractFunc) {
+	if Adapters[Name] != nil {
+		//panic("logger: logger adapter " + adapterName + " already registered!")
 	}
+	
+	if F == nil {
+		//panic("logger: logger adapter " + adapterName + " is nil!")
+	}
+
+	Adapters[Name] = F
 }
 

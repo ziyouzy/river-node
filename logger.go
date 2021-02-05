@@ -7,7 +7,7 @@
 
 /* Detach->拆卸		Attach->装配 */
 
-package heartbeating
+package zadapter
 
 
 import (
@@ -20,21 +20,20 @@ import (
  * log.Log().Info("xxxxxxx")
  * log.Log().Warning("xxxxxxx")
  */
-func Log() *logger.Logger{	return l	}
 
-
-/*单例实体与初始化函数*/
 var l *logger.Logger
-func Logger(lp *logger.Logger){
-	if lp !=nil{ l = lp }//上层已创建好了一个go-loggr对象，就不用自己创建了
+func AttachLogger(lp *logger.Logger) {	
+	l =lp	
+}
 
+func NewLogger(){
 	l = logger.NewLogger()
 
 	/** 在这里设定异步方式
 	 * 程序结束前必须调用 Flush
 	 * 已简单实现了析构函数LogFlush()
 	 */
-	l.SetAsync()
+	//l.SetAsync()
 
 	/** 由于准备设置多个输出
 	 * 需要先拆卸默认的"console"适配器
@@ -55,17 +54,17 @@ func Logger(lp *logger.Logger){
 
 
     // 文件输出配置
-    fileConfig := &go_logger.FileConfig {
-		Filename : "./test.log", // 日志输出文件名，不自动存在
+    fileConfig := &logger.FileConfig {
+		Filename : "./conf/test.log", // 日志输出文件名，不自动存在
 		
 		/** 如果要将单独的日志分离为文件
 		 * 请配置LealFrimeNem参数
 		 */
         LevelFileName : map[int]string {
-            l.LoggerLevel("error"): "./error.log",    // Error 级别日志被写入 error .log 文件
-			l.LoggerLevel("warning"): "./warning.log",// Warn 级别日志被写入到 Warn.log 文件中
-			l.LoggerLevel("info"): "./info.log",      // Info 级别日志被写入到 info.log 文件中
-            l.LoggerLevel("debug"): "./debug.log",    // Debug 级别日志被写入到 debug.log 文件中
+            l.LoggerLevel("error"): "./conf/error.log",    // Error 级别日志被写入 error .log 文件
+			l.LoggerLevel("warning"): "./conf/warning.log",// Warn 级别日志被写入到 Warn.log 文件中
+			l.LoggerLevel("info"): "./conf/info.log",      // Info 级别日志被写入到 info.log 文件中
+            l.LoggerLevel("debug"): "./conf/debug.log",    // Debug 级别日志被写入到 debug.log 文件中
 		},
 		
         MaxSize : 1024 * 1024,  // 文件最大值（KB），默认值0不限
@@ -80,10 +79,14 @@ func Logger(lp *logger.Logger){
 
 	}	
     // 添加 file 为 logger 的一个输出
-    l.Attach("file", go_logger.LOGGER_LEVEL_DEBUG, fileConfig)
+    l.Attach("file", logger.LOGGER_LEVEL_DEBUG, fileConfig)
 }
 
-/*析构函数，由于开启了异步模式，所以必须在创建实体后立刻做好defer*/
-func LogFlush(){
-	l.Flush()
+func Logger_Info(str string){
+	l.Info(str)
 }
+
+/*析构函数，如果开启了异步模式，所以必须在创建实体后立刻做好defer*/
+// func LogFlush(){
+// 	l.Flush()
+// }
