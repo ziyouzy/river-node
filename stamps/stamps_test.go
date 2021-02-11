@@ -1,4 +1,4 @@
-package crc
+package stamps
 
 import (
 	"fmt"
@@ -9,6 +9,6 @@ import (
 )
 
 
-func TestCRC(t *testing.T) {
+func TestStamps(t *testing.T) {
 	fmt.Println(zadapter.Adapters)
 }

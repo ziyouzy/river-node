@@ -1,11 +1,12 @@
-package crc
+package anotherexample
+
 
 import (
 	"fmt"
-	//"time"
 	"testing"	
 
 	"zadapter"
+
 )
 
 

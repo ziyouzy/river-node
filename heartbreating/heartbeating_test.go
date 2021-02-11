@@ -1,4 +1,4 @@
-package crc
+package heartbeating
 
 import (
 	"fmt"
@@ -9,6 +9,6 @@ import (
 )
 
 
-func TestCRC(t *testing.T) {
+func TestHeartBreating(t *testing.T) {
 	fmt.Println(zadapter.Adapters)
 }

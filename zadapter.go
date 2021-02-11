@@ -55,7 +55,7 @@ package zadapter
 // }
 
 
-
+var Adapters = make(map[string]adapterAbstractFunc)
 
 type adapterAbstractFunc func() AdapterAbstract
 
@@ -64,9 +64,6 @@ type AdapterAbstract interface {
 	Init(config Config) error
 	Run()
 }
-
-
-var Adapters = make(map[string]adapterAbstractFunc)
 
 
 func Register(Name string, F adapterAbstractFunc) {
