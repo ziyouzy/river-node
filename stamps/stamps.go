@@ -1,13 +1,10 @@
 package stamps
 
 import (
-
 	"zadapter"
+	//"zadapter/define"	/*暂时没有需要返回给上层的signal内容*/
+	"zadapter/logger"
 	
-	/*暂时没有需要返回给上层的signal内容*/
-	//"zadapter/define"
-
-	//"fmt"
 	"bytes"
 	"reflect"
 	"errors"
@@ -66,12 +63,12 @@ func (p *Stamps)Init(stampsConfigAbs zadapter.Config) error{
 	cs := vs.Interface().(*StampsConfig)
 
 
-	if cs.breaking == nil || cs.stamps == nil {
+	if cs.Breaking == nil || cs.Stamps == nil {
 		return errors.New("stamps adapter init error, breaking or stamps is nil")
 	}
 
 	/*此适配器的signalChan可以为空*/
-	if cs.rawChan == nil || cs.newChan ==nil{
+	if cs.RawinChan == nil || cs.NewoutChan ==nil{
 		return errors.New("stamps adapter init error, slotChan or signalChan "+
 		                  "or newChan is nil")
 	}
@@ -81,7 +78,7 @@ func (p *Stamps)Init(stampsConfigAbs zadapter.Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
-	if(p.config.mode == HEADANDTAIL) { p.tailHandler = bytes.NewBuffer([]byte{}) } 
+	if(p.config.Mode == HEADANDTAIL) { p.tailHandler = bytes.NewBuffer([]byte{}) } 
 
 	return nil
 }
@@ -92,22 +89,22 @@ func (p *Stamps)Init(stampsConfigAbs zadapter.Config) error{
  * Run()的一切问题都通过signal的方式传递至管道
  */
 func (p *Stamps)Run(){
-	switch p.config.mode{
+	switch p.config.Mode{
 	case HEAD:
 		go func(){
-			for raw := range p.config.rawChan{
+			for raw := range p.config.RawinChan{
 				p.stampToHead(raw)
 			}
 		}()
 	case TAIL:
 		go func(){
-			for raw := range p.config.rawChan{
+			for raw := range p.config.RawinChan{
 				p.stampToTail(raw)
 			}
 		}()
 	case HEADANDTAIL:
 		go func(){
-			for raw := range p.config.rawChan{
+			for raw := range p.config.RawinChan{
 				p.stampToHeadAndTail(raw)
 			}
 		}()
@@ -128,6 +125,7 @@ func NewStamps() zadapter.AdapterAbstract {
 
 func init() {
 	zadapter.Register(ADAPTER_NAME, NewStamps)
+	logger.Info("预加载完成，印章适配器已预加载至package zadapter.Adapters结构内")
 }
 
 
@@ -139,14 +137,14 @@ func init() {
 
 func (p *Stamps)stampToHead(raw []byte){
 	p.bytesHandler.Reset()
-	for _, stamp :=range p.config.stamps{
+	for _, stamp :=range p.config.Stamps{
 		p.bytesHandler.Write(stamp)
-		p.bytesHandler.Write(p.config.breaking)
+		p.bytesHandler.Write(p.config.Breaking)
 	}
 
 	p.bytesHandler.Write(raw)
 
-	p.config.newChan <-p.bytesHandler.Bytes()
+	p.config.NewoutChan <-p.bytesHandler.Bytes()
 }
 
 func (p *Stamps)stampToTail(raw []byte){
@@ -154,24 +152,24 @@ func (p *Stamps)stampToTail(raw []byte){
 
 	p.bytesHandler.Write(raw)
 
-	for _, stamp :=range p.config.stamps{
-		p.bytesHandler.Write(p.config.breaking)
+	for _, stamp :=range p.config.Stamps{
+		p.bytesHandler.Write(p.config.Breaking)
 		p.bytesHandler.Write(stamp)
 	}
 
-	p.config.newChan <-p.bytesHandler.Bytes()
+	p.config.NewoutChan <-p.bytesHandler.Bytes()
 }
 
 func (p *Stamps)stampToHeadAndTail(raw []byte){
 
 	p.bytesHandler.Reset();    ishead :=true;    p.tailHandler.Reset()
 
-	for _, stamp :=range p.config.stamps{
+	for _, stamp :=range p.config.Stamps{
 		if ishead{
 			p.bytesHandler.Write(stamp)
-			p.bytesHandler.Write(p.config.breaking)				
+			p.bytesHandler.Write(p.config.Breaking)				
 		}else{
-			p.tailHandler.Write(p.config.breaking)
+			p.tailHandler.Write(p.config.Breaking)
 			p.tailHandler.Write(stamp)
 		}
 
@@ -180,6 +178,6 @@ func (p *Stamps)stampToHeadAndTail(raw []byte){
 
 	p.bytesHandler.Write(raw);    p.bytesHandler.Write(p.tailHandler.Bytes())
 
-	p.config.newChan <-p.bytesHandler.Bytes()
+	p.config.NewoutChan <-p.bytesHandler.Bytes()
 }
 

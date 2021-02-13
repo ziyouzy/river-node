@@ -4,7 +4,7 @@
 
  * 其他的链接类型，或者是某个管道，也无论是长或短连接需求均适用
  */
- package heartbeating
+package heartbeating
 
 import (
 	"zadapter"

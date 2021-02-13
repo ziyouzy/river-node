@@ -48,9 +48,7 @@ func Debugf(format string, a ...interface{}){ l.Debugf(format,a...) }
 
 func NewLogger(){
 	l = go_logger.NewLogger()
-
-	/*在这里设定异步方式,程序结束前必须调用 Flush*/
-	l.SetAsync()
+	l.SetAsync()/*在这里设定异步方式,程序结束前必须调用 Flush*/
 
 	/** 由于准备设置多个不同类型的输出方式，如console与写入文件等
 	   需要先拆卸默认的"console"适配器，然后自定义新的适合多个输出场景的新“console”适配器

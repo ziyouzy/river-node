@@ -2,41 +2,40 @@ package testpkg
 
 import (
     "zadapter/heartbeating"
+    "zadapter/stamps"
+    "zadapter/crc"
     "zadapter"
     "zadapter/define"
     "zadapter/logger"
     
  
     "fmt"
+    "bytes"
     "time"
     "testing"	
 )
  
  func TestAdapters(t *testing.T) {
-	defer logger.Flush()
-
- 
- 
+    defer logger.Flush()
+    
     /*此管道的作用是测试信号的生成*/
-    testBytesSenderCH := make(chan []byte)
+    testBytesSenderCh := make(chan []byte)
+
     /*主线程中signal的统一管理管道*/
     mainTestSignalCh := make(chan int)
-    /*心跳包的事件注入管道*/
-    mainTestHbRawinCh :=make(chan struct{})
-    /*印章包的事件注入管道?*/
-    //mainTestStampsRawCh :=make(chan struct{})
- 
- 
- 
-    /** 暂不设计NewChl类管道的测试需求需求
 
-     * 详细的演示会在zadapter/test包内进行
-       mainTestStampsRawCh :=make(chan []byte)
-       mainTestStampsNewChan :=make(chan []byte)
+    /*心跳包的事件注入管道*/
+    mainTestHbRawinCh := make(chan struct{})
+    /*印章包的事件注入管道*/
+    mainTestStampsRawinCh := make(chan []byte)
+    /*CRC校验包的事件注入管道*/
+    mainTestCRCRawinCh := make(chan []byte)
  
-       mainTestCRCRawCh :=make(chan []byte)
-       mainTestCRCNewChan :=make(chan []byte)
-     */
+    /*印章包会生成的新数据流*/
+    mainTestStampsNewoutCh := make(chan []byte)
+    /*CRC校验包会生成的新数据流*/
+    mainTestCRCNewoutCh := make(chan []byte)
+    mainTestCRCErroutCh := make(chan []byte)
      
  
 
@@ -60,7 +59,8 @@ import (
 	   只要确保logger的“初始化”在所有的包真正去使用他之前完成即可
 	 */
     heartBeatingAbsf := zadapter.Adapters[heartbeating.ADAPTER_NAME]
- 
+    stampsAbsf := zadapter.Adapters[stamps.ADAPTER_NAME]
+    crcAbsf := zadapter.Adapters[crc.ADAPTER_NAME]
  
     /** heartBeatingAbsf只是一个能返回接口实体的函数
     
@@ -73,7 +73,9 @@ import (
 	   上一步只是从目录里挑出一个需要使用的对象的“标签”
 	   逻辑上有一点像是个“路径”
 	 */
-    heartBeatingAbs :=heartBeatingAbsf()
+    heartBeatingAbs := heartBeatingAbsf()
+    stampsAbs := stampsAbsf()
+    crcAbs := crcAbsf()
  
  
     /** 拿到对象类后，内部字段很多都是空的，所以需要进行初始化
@@ -85,10 +87,11 @@ import (
        而应该是在“使用package zadapter”里进行相关的操作
        
 	 * 下面只是简单的演示一下
-	 */
+     */
+//----------
     heartBeatingConfig := &heartbeating.HeartBeatingConfig{
-        Timeout : 8 * time.Second,
         UniqueId : "testPkg",
+        Timeout : 8 * time.Second,
         SignalChan : mainTestSignalCh,
         RawinChan : mainTestHbRawinCh,
     }
@@ -98,7 +101,62 @@ import (
     }
  
     heartBeatingAbs.Run()
+//----------
+    stampsConfig := &stamps.StampsConfig{
+        UniqueId : "testPkg",
+	
+        /** 分为三种，HEAD、TAIL、HEADANDTAIL
+         * 当是HEADANDTAIL模式，切len(stamp)>1时
+         * 按照如下顺序拼接：
+         * stamp1+raw(首部);raw+stamp2(尾部);stamp3+raw(首部);raw+stamp4(尾部);stamp5+raw(首部);....
+         * 这样的首尾交替规律的拼接方式
+         */
+        Mode : stamps.HEADANDTAIL, 
+    
+        Breaking : []byte("+"), /*戳与数据间的分隔符，可以为nil*/
+    
+        Stamps : [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/
+    
+        SignalChan : mainTestSignalCh,/*发送给主进程的信号队列，就像Qt的信号与槽*/
+    
+        RawinChan : mainTestStampsRawinCh,/*从主线程发来的信号队列，就像Qt的信号与槽*/
+    
+        NewoutChan :  mainTestStampsNewoutCh,/*校验通过切去掉校验码的新切片*/
+    } 
+
+    if err := stampsAbs.Init(stampsConfig); err == nil {
+        logger.Info("test adapter init success")
+    }
  
+    stampsAbs.Run()
+//-----------
+    crcConfig := &crc.CRCConfig{
+        UniqueId : "testPkg",
+
+	    /** 有两种模式：define.READONLY和define.NEWCHAN
+	    * 前者只判定当前字节序列是否能通过CRC校验
+	    * 后者则校验后生成新的数据管道 
+	    */
+
+	    Mode : crc.NEWCHAN,
+
+	    IsBigEndian : crc.ISBIGENDDIAN,
+
+        SignalChan : mainTestSignalCh, /*发送给主进程的信号队列，就像Qt的信号与槽*/
+
+	    RawinChan : mainTestCRCRawinCh, /*从主线程发来的信号队列，就像Qt的信号与槽*/
+
+	    NewoutChan : mainTestCRCNewoutCh, /*校验通过切去掉校验码的新切片*/
+        ErroutChan : mainTestCRCErroutCh, /*校验未通过的原始校验码*/
+    } 
+
+    if err := crcAbs.Init(crcConfig); err == nil {
+        logger.Info("test adapter init success")
+    }
+
+    crcAbs.Run()
+
+
  
 	/** 业务流程的第一步，先进行signal的统一回收工作 
     
@@ -127,7 +185,7 @@ import (
             case define.CRC_UPSIDEDOWN:
                 fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
             case define.CRC_NOTPASS:
-                fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
+                fmt.Println("signal:", "CRC_NOTPASS")
             case define.ANOTHEREXAMPLE_TEST1:
                 fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
             case define.ANOTHEREXAMPLE_TEST2:
@@ -158,9 +216,9 @@ import (
 	   而仅仅是为适配器包自身实现某种功能所写出的代码逻辑
 	 */
     go func(){
-        defer close(testBytesSenderCH)
+        defer close(testBytesSenderCh)
         for i := 1;i < 20;i++{
-            testBytesSenderCH <- []byte{0x01, 0x02, 0x03,}
+            testBytesSenderCh <- []byte{0x01, 0x02, 0x03,}
             if i < 10{
                 time.Sleep(time.Second)
             }else{
@@ -183,14 +241,21 @@ import (
 	 */
     go func(){
         defer close(mainTestHbRawinCh)
-        //defer close(mainTestStampsRawCh)
+        defer close(mainTestStampsRawinCh)
         //defer close(mainTestCRCRawCh)
-        for bytes := range testBytesSenderCH{
+        for bytes := range testBytesSenderCh{
             fmt.Println("bytes is", bytes)
  
             mainTestHbRawinCh <- struct{}{}
-            //mainTestStampsRawCh <- bytes	这里不过多进行演示，详细的演示会在zadapter/test包内进行	
-            //mainTestCRCRawCh <- bytes		这里不过多进行演示，详细的演示会在zadapter/test包内进行
+            mainTestStampsRawinCh <- bytes	
+
+            /** 事情要一件一件完成
+            
+             * 而且CRC校验包不会直接拦截一个“当前所在管道的”事件
+             * (就好比这里的位置)
+             * 而是借助自身管道，筛选出有效数据
+             */
+            //mainTestCRCRawCh <- bytes		
         }
     }()
  
@@ -208,10 +273,29 @@ import (
  
      * 下方携程就是个大致的例子
      */
+
+    go func(){
+        defer close(mainTestCRCRawinCh)
+        for bytesWithStamps := range mainTestStampsNewoutCh{
+           fmt.Println("bytesWithStamps is", bytesWithStamps)
+           mainTestCRCRawinCh <- bytesWithStamps
+        }
+    }()
+
+    go func(){
+        //defer 暂时似乎到了尽头 
+        for bytesPassCRC := range mainTestCRCNewoutCh{
+            fmt.Println("bytesPassCRC is：", bytes.Split(bytesPassCRC,[]byte("+")))
+        }
+    }()
+
+    go func(){
+        //defer 暂时似乎到了尽头 
+        for bytesNotpassCRC := range mainTestCRCErroutCh{
+           fmt.Println("bytesNotPassCRC is：", bytes.Split(bytesNotpassCRC,[]byte("+")))
+        }
+    }()
  
-     //go func(){
-         //defer close(mainTestStampsNewChan)
-         //defer close(mainTestCRCNewChan)
  
          /** 如何才算是一次完整的数据流“分流”事件呢？
           * 首先数据分流是数据处理的一种形式，或者说是分型
@@ -240,15 +324,7 @@ import (
           
           * 其实可以概括成，每个for range{}都是一个独立的“数据处理节点”
           */
- 
-         //for newrcrcbytes := range mainTestCRCNewChan{
- 
-         //}
- 
-         //for newStampsbytes := range mainTestStampsNewChan{
- 
-         //}
-     //}()
+
  
      //这里的测试并没有实现CRC适配器与Stamps包的任何对象，所以测试到此未知
  

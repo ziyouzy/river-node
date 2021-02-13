@@ -2,12 +2,14 @@ package crc
 
 import (
 	"zadapter"
+	"zadapter/define"
+	"zadapter/logger"
 
 	//"fmt"
 	"bytes"
 	"reflect"
 	"errors"
-	"bytes"
+	//"bytes"
 	"encoding/binary"
 )
 
@@ -35,6 +37,7 @@ type CRCConfig struct{
 	RawinChan chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	NewoutChan chan []byte /*校验通过切去掉校验码的新切片*/
+	ErroutChan chan []byte /*校验未通过的原始校验码*/
 }
 
 
@@ -66,19 +69,19 @@ func (p *CRC)Init(CRCConfigAbs zadapter.Config) error{
 	ccrc := vcrc.Interface().(*CRCConfig)
 
 
-	if ccrc.uniqueId == "" {
+	if ccrc.UniqueId == "" {
 		return errors.New("crc adapter init error, uniqueId is nil")
 	}
 
-	if ccrc.signalChan == nil{
+	if ccrc.SignalChan == nil{
 		return errors.New("crc adapter init error, signalChan is nil")
 	}
 
-	if ccrc.mode ==NEWCHAN&&ccrc.slotChan == nil{
+	if ccrc.Mode ==NEWCHAN&&ccrc.RawinChan == nil{
 		return errors.New("newchan mode crc adapter init error, slotChan is nil") 
 	}
 
-	if ccrc.mode != NEWCHAN&&ccrc.mode != READONLY {
+	if ccrc.Mode != NEWCHAN&&ccrc.Mode != READONLY {
 		return errors.New("newchan mode crc adapter init error, unknown mode") 
 	}
 	
@@ -127,16 +130,16 @@ func (p *CRC)Init(CRCConfigAbs zadapter.Config) error{
 
 
 func (p *CRC)Run(){
-	switch p.config.mode{
+	switch p.config.Mode{
 	case READONLY:
 		go func(){
-			for mb := range p.config.rawChan{
+			for mb := range p.config.RawinChan{
 				p.readOnlyCheck(mb)
 			}
 		}()
 	case NEWCHAN:
 		go func(){
-			for mb := range p.config.rawChan{
+			for mb := range p.config.RawinChan{
 				p.newChanCheck(mb)
 			}
 		}()
@@ -152,6 +155,7 @@ func NewCRC() zadapter.AdapterAbstract {
 
 func init() {
 	zadapter.Register(ADAPTER_NAME, NewCRC)
+	logger.Info("预加载完成，CRC校验适配器已预加载至package zadapter.Adapters结构内")
 }
 
 
@@ -166,12 +170,12 @@ func init() {
 func (p *CRC)readOnlyCheck(mb []byte){
 	raw,crc := p.midModbus(mb) 
 
-	if bytes.Equal(p.checkCRC16(raw, p.config.isBigEndian), crc){
-		p.config.signalChan <- define.CRC_NORMAL
-	}else if bytes.Equal(p.checkCRC16(raw, !p.config.isBigEndian),crc){
-		p.config.signalChan <- define.CRC_UPSIDEDOWN
+	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
+		p.config.SignalChan <- define.CRC_NORMAL
+	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
+		p.config.SignalChan <- define.CRC_UPSIDEDOWN
 	}else{
-		p.config.signalChan <- define.CRC_NOTPASS
+		p.config.SignalChan <- define.CRC_NOTPASS
 	}
 }
 
@@ -179,22 +183,26 @@ func (p *CRC)readOnlyCheck(mb []byte){
 func (p *CRC)newChanCheck(mb []byte){
 	raw,crc := p.midModbus(mb) 
 
-	if bytes.Equal(p.checkCRC16(raw, p.config.isBigEndian), crc){
-		p.config.signalChan <- define.CRC_NORMAL
+	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
+		p.config.SignalChan <- define.CRC_NORMAL
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
-		p.config.newChan <-p.bytesHandler.Bytes()
+		p.config.NewoutChan <-p.bytesHandler.Bytes()
 
-	}else if bytes.Equal(p.checkCRC16(raw, !p.config.isBigEndian),crc){
-		p.config.signalChan <- define.CRC_UPSIDEDOWN
+	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
+		p.config.SignalChan <- define.CRC_UPSIDEDOWN
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
-		p.config.newChan <-p.bytesHandler.Bytes()
+		p.config.NewoutChan <-p.bytesHandler.Bytes()
 
 	}else{
-		p.config.signalChan <- define.CRC_NOTPASS
+		p.config.SignalChan <- define.CRC_NOTPASS
+
+		p.bytesHandler.Reset()
+		p.bytesHandler.Write(mb)
+		p.config.ErroutChan <- p.bytesHandler.Bytes()
 	}
 }
 
