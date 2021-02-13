@@ -32,15 +32,15 @@ const ADAPTER_NAME1 = "anotherexample"
 /*范例Config*/
 type AnotherExmaple1Config struct{
 
-	uniqueId string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
+	UniqueId string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
 
-	mode int
+	Mode int
 
-	signalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
-	rawChan chan []byte
+	RawinChan chan []byte
 
-	newChan chan *another.AnotherStruct
+	NewoutChan chan *another.AnotherStruct
 }
 
 

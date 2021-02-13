@@ -18,23 +18,23 @@ const ADAPTER_NAME = "crc"
 
 type CRCConfig struct{
 
-	uniqueId string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
+	UniqueId string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
 
 	/** 有两种模式：define.READONLY和define.NEWCHAN
 	 * 前者只判定当前字节序列是否能通过CRC校验
 	 * 后者则校验后生成新的数据管道 
 	 */
 
-	mode int 
+	Mode int 
 
-	isBigEndian bool
+	IsBigEndian bool
 
 
-	signalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
-	rawChan chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	RawinChan chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-	newChan chan []byte /*校验通过切去掉校验码的新切片*/
+	NewoutChan chan []byte /*校验通过切去掉校验码的新切片*/
 }
 
 

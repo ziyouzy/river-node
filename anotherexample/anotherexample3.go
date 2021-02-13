@@ -33,15 +33,15 @@ const ADAPTER_NAME3 = "anotherexample"
 /*范例Config*/
 type AnotherExmaple3Config struct{
 
-	uniqueId string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
+	UniqueId string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
 
-	mode int
+	Mode int
 
-	signalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
-	rawChan chan another.AnotherFunc
+	RawinChan chan another.AnotherFunc
 
-	newChan chan *another.AnotherStruct
+	NewoutChan chan *another.AnotherStruct
 }
 
 func (p *AnotherExmaple3Config)Name()string{

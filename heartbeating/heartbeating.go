@@ -1,30 +1,16 @@
-/*p.config.signalChan与p.config.slotChan均在上层make与close*/
+/*p.config.signalChan与p.config.rawinChan均在上层make与close*/
 
+/** HeartBeating不仅仅可以用作tcp的心跳包
 
-/** HeartBeating不仅仅可以用作tcp的心跳包，其他的链接类型，如果有长连接需求也适用
- * 具体的使用方式是，当外层完成通过net.Conn封装自定义Conn时后，将自定义Conn作为参数传入Handler方法
- * 自定义Conn（如下面的ZYUnifiedConn）是个接口，实现了Attach方法
- * (如：
-	    ZYHB :=(HeartBeatHandler)HeartBeating(zqy_go_logger)
-		ZYUnifiedConn ：=NewZYUnifiedConn(xxx,xxx,xxx)
-		ZYUnifiedConn.Attach("heartbeating", ZYHB)
- * )
- * 函数数据类型是引用类型,最后的函数类型参数是比较重要的核心
- * 他被设计成自定义Conn的一个内部字段
- * 这样就可以把心跳包逻辑从整体套接字通信逻辑中抽离出来
- * 同时，ZYHB是个单例，他的Handler可以分别应用于多个自定义conn，自定义conn的内部是tcp，udp，snmp也都是可以的
+ * 其他的链接类型，或者是某个管道，也无论是长或短连接需求均适用
  */
-
-
-package heartbeating
+ package heartbeating
 
 import (
-
-	//logger "github.com/phachon/go-logger"
 	"zadapter"
 	"zadapter/define"
+	"zadapter/logger"
 
-	"fmt"
 	"time"
 	"reflect"
 	"errors"
@@ -36,11 +22,11 @@ const ADAPTER_NAME = "heartbeating"
 
 type HeartBeatingConfig struct{
 
-	timeout time.Duration
+	Timeout time.Duration
 
-	uniqueId string	/*其所属上层Conn的唯一识别标识*/
+	UniqueId string	/*其所属上层Conn的唯一识别标识*/
 	
-	signalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
 
 	/** 虽然是面向[]byte的适配器，但是并不需要[]byte做任何操作
@@ -48,9 +34,7 @@ type HeartBeatingConfig struct{
 	 * 使用struct{}作为事件的传递介质
 	 */
 
-	rawChan chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
-
-	//l *logger.Logger
+	RawinChan chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
 }
 
 func (p *HeartBeatingConfig)Name()string{
@@ -60,11 +44,7 @@ func (p *HeartBeatingConfig)Name()string{
 
 
 type HeartBeating struct{
-	//timeout time.Second
 	timer *time.Timer
-
-	//sl []byte
-
 	config *HeartBeatingConfig
 }
 
@@ -82,12 +62,12 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs zadapter.Config) error{
 	chb := vhb.Interface().(*HeartBeatingConfig)
 
 
-	if chb.timeout == (0 * time.Second) || chb.uniqueId == "" {
+	if chb.Timeout == (0 * time.Second) || chb.UniqueId == "" {
 		return errors.New("heartbeating adapter init error, timeout or uniqueId is nil")
 	}
 
-	if chb.signalChan == nil || chb.slotChan == nil{
-		return errors.New("heartbeating adapter init error, slotChan or signalChan is nil")
+	if chb.SignalChan == nil || chb.RawinChan == nil{
+		return errors.New("heartbeating adapter init error, rawChan or signalChan is nil")
 	}
 	
 	
@@ -99,6 +79,7 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs zadapter.Config) error{
 
 
 /** Run()必须确保不返回error、不fmt错误
+
  * 这些问题都要在Init()函数内实现纠错与警告
  * Run()的一切问题都通过signal的方式传递至管道
  */
@@ -111,7 +92,9 @@ func (p *HeartBeating)Run(){
 		 * timer被下方携程引用，生命周期100%由下方携程匿名函数的生命周期决定 
 		 */
 		  
-		p.timer = time.NewTimer(p.config.timeout)
+		p.timer = time.NewTimer(p.config.Timeout)
+	}else{
+		p.timer.Reset(p.config.Timeout)
 	}
 
 
@@ -142,27 +125,18 @@ func (p *HeartBeating)Run(){
 			select {
 			case <-p.timer.C:
 				
-				p.config.signalChan<-define.HEARTBREATING_TIMEOUT
-
-				// p.config.logger.Warning(fmt.Sprintln("UniqueId为 %s 的链接超时，"+
-				// 									 "心跳包模块会自动做好析构工作"+
-				// 									 "但不会干预上层套接字Conn的业务逻辑与销毁", 
-				// 									 p.config.UniqueId))
+				p.config.SignalChan<-define.HEARTBREATING_TIMEOUT
+				if len(p.config.RawinChan)>0{ _ = <-p.config.RawinChan }
 				return
 
-			case <-p.config.slotChan:
+			case <-p.config.RawinChan:
 
 				/*Reset一个timer前必须先正确的关闭它*/
-				if p.timer.Stop() == STOPAFTEREXPIRE{ 
-				// 	p.config.logger.Warning("当心跳包进行timer的Reset操作时与timer自身的到期事件"+
-				// 							"发生了race condition（竞争条件之下心跳事件发生在前")
-			    	_ = <-p.timer.C 
-				}
-				
+				if p.timer.Stop() == STOPAFTEREXPIRE{ _ = <-p.timer.C }
 				/*正式Reset*/
-				p.timer.Reset(p.config.timeout)
+				p.timer.Reset(p.config.Timeout)
+				p.config.SignalChan<-define.HEARTBREATING_NORMAL
 
-				p.config.signalChan<-define.HEARTBREATING_NORMAL
 			}
 		}
 	}()		
@@ -170,8 +144,9 @@ func (p *HeartBeating)Run(){
 
 
 
-/** 由于通信管道的存在似乎就无法为其设计初始化默认值的操作了
- * 但这个函数也是必须的，因为上层一定会遍历各个map
+/** 下面是对package zadapter中的map进行初始化
+
+ * 真正使用他的上层一定会遍历各个map
  * 从而识别并确认都有哪些已经注册并在册的预编译适配器
  */
 
@@ -182,6 +157,7 @@ func NewHeartbBreating() zadapter.AdapterAbstract {
 
 func init() {
 	zadapter.Register(ADAPTER_NAME, NewHeartbBreating)
+	logger.Info("预加载完成，心跳包适配器已预加载至package zadapter.Adapters结构内")
 }
 	
 

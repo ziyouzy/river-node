@@ -19,7 +19,7 @@ const ADAPTER_NAME = "stamps"
 
 type StampsConfig struct{
 
-	uniqueId string	/*其所属上层Conn的唯一识别标识*/
+	UniqueId string	/*其所属上层Conn的唯一识别标识*/
 	
 	/** 分为三种，HEAD、TAIL、HEADANDTAIL
 	 * 当是HEADANDTAIL模式，切len(stamp)>1时
@@ -27,17 +27,17 @@ type StampsConfig struct{
 	 * stamp1+raw(首部);raw+stamp2(尾部);stamp3+raw(首部);raw+stamp4(尾部);stamp5+raw(首部);....
 	 * 这样的首尾交替规律的拼接方式
 	 */
-	mode int 
+	Mode int 
 
-	breaking []byte /*戳与数据间的分隔符，可以为nil*/
+	Breaking []byte /*戳与数据间的分隔符，可以为nil*/
 
-	stamps [][]byte /*允许输入多个，会按顺序依次拼接*/
+	Stamps [][]byte /*允许输入多个，会按顺序依次拼接*/
 
-	signalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
-	rawChan chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	RawinChan chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-	newChan chan []byte /*校验通过切去掉校验码的新切片*/
+	NewoutChan chan []byte /*校验通过切去掉校验码的新切片*/
 }
 
 func (p *StampsConfig)Name()string{
