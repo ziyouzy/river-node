@@ -1,4 +1,4 @@
-package zadapter
+package river_node
 
 import(
 	"runtime"

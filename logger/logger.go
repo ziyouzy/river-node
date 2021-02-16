@@ -1,4 +1,4 @@
-/** 由于zadapter包所涉及的具体某一个适配器(如CRC，心跳包)
+/** 由于river-node包所涉及的具体某一个节点(如CRC，心跳包)
 	内部也需要用到日志系统，因此基于go-logger设计为一个独立的日志包
 	从而实现在不同的包中调用同一个日志实体
 	(也就是结构类 l := go-logger.NewLogger())
@@ -6,7 +6,7 @@
 
 
 
-/** logger.Attach(adapterName string, level int, config Config) error
+/** logger.Attach(go-logger的adapterName string, level int, config Config) error
  * 第一个参数是适配器的名称，是模块的内置适配器，直接使用即可
  * 必须确保输入名称字符串是正确，才能让内置的功能函数里遍历到对应的适配器对象
  * 第二个参数是日志级别

@@ -13,29 +13,29 @@
  */
 
 
-package zadapter
+package river_node
 
 
-var Adapters = make(map[string]adapterAbstractFunc)
+var Nodes = make(map[string]nodeAbstractFunc)
 
-type adapterAbstractFunc func() AdapterAbstract
+type nodeAbstractFunc func() NodeAbstract
 
-type AdapterAbstract interface {
+type NodeAbstract interface {
 	Name() string
 	Init(config Config) error
 	Run()
 }
 
 
-func Register(Name string, F adapterAbstractFunc) {
-	if Adapters[Name] != nil {
-		//panic("logger: logger adapter " + adapterName + " already registered!")
+func Register(Name string, F nodeAbstractFunc) {
+	if Nodes[Name] != nil {
+		//panic("logger: logger river-node " + Name + " already registered!")
 	}
 	
 	if F == nil {
-		//panic("logger: logger adapter " + adapterName + " is nil!")
+		//panic("logger: logger river-node " + Name + " is nil!")
 	}
 
-	Adapters[Name] = F
+	Nodes[Name] = F
 } 
 

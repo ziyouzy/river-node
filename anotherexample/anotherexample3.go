@@ -8,14 +8,14 @@ package anotherexample
 
 import (
 	/** 引入zadaptr包与another包都遵循了单向调用链原则
-	 * 虽然文件夹部署上zadapter文件夹在最外层
+	 * 虽然文件夹部署上river-node文件夹在最外层
 	 * anotherexample文件夹在中间层
 	 * another文件夹在最内层
 	 * 但是从包的相互引用逻辑上最末是anotherexample包
 	 */
-	"zadapter"
-	"zadapter/anotherexample/another"
-	"zadapter/define"
+	"river-node"
+	"river-node/anotherexample/another"
+	"river-node/define"
 
 	"math/rand"
 	"time"
@@ -27,7 +27,7 @@ import (
 )
 
 
-const ADAPTER_NAME3 = "anotherexample"
+const RIVER_NODE_NAME3 = "anotherexample"
 
 
 /*范例Config*/
@@ -45,7 +45,7 @@ type AnotherExmaple3Config struct{
 }
 
 func (p *AnotherExmaple3Config)Name()string{
-	return ADAPTER_NAME3
+	return RIVER_NODE_NAME3
 }
 
 type AnotherExmaple3 struct{
@@ -54,13 +54,13 @@ type AnotherExmaple3 struct{
 }
 
 func (p *AnotherExmaple3)Name()string{
-	return ADAPTER_NAME3
+	return RIVER_NODE_NAME3
 }
 
 
-func (p *AnotherExmaple3)Init(anotherExmaple3ConfigAbs zadapter.Config) error{
-	if anotherExmaple3ConfigAbs.Name() != ADAPTER_NAME3 {
-		return errors.New("anotherexmaple3 adapter init error, config must AnotherExmaple3Config")
+func (p *AnotherExmaple3)Init(anotherExmaple3ConfigAbs river_node.Config) error{
+	if anotherExmaple3ConfigAbs.Name() != RIVER_NODE_NAME3 {
+		return errors.New("anotherexmaple3 river-node init error, config must AnotherExmaple3Config")
 	}
 
 
@@ -69,7 +69,7 @@ func (p *AnotherExmaple3)Init(anotherExmaple3ConfigAbs zadapter.Config) error{
 
 
 	if config.signalChan == nil||config.rawChan == nil||config.newChan == nil{
-		return errors.New("anotherexmaple3 adapter init error, slotChan or signalChan "+
+		return errors.New("anotherexmaple3 river-node init error, slotChan or signalChan "+
 		                  "or newChan is nil")
 	}
 
@@ -87,7 +87,7 @@ func (p *AnotherExmaple3)Init(anotherExmaple3ConfigAbs zadapter.Config) error{
 	case TEST3:
 		fmt.Println("type is anotherexample3, mode is TEST3")
 	default:
-		return errors.New("anotherexmaple3 adapter init error, unknown mode")
+		return errors.New("anotherexmaple3 river-node init error, unknown mode")
 	}
 	
 	return nil
@@ -120,12 +120,12 @@ func (p *AnotherExmaple3)Run(){
 
 
 
-func NewAnotherExmaple3() zadapter.AdapterAbstract {
+func NewAnotherExmaple3() river_node.NodeAbstract {
 	return &AnotherExmaple3{}
 }
 
 
 func init() {
-	zadapter.Register(ADAPTER_NAME3, NewAnotherExmaple3)
+	river_node.Register(RIVER_NODE_NAME3, NewAnotherExmaple3)
 }
 

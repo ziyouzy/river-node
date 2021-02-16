@@ -1,4 +1,4 @@
-package zadapter
+package river_node
 
 import (
 	"fmt"
@@ -33,7 +33,7 @@ func (p *test)Destory(){
 	p.conf = nil
 }
 
-func TestZadapter(t *testing.T) {
+func TestNode(t *testing.T) {
 	tsConf :=&testConfig{
 			b:{0x01,0x02,0x03,}
 		}

@@ -1,12 +1,12 @@
 package testpkg
 
 import (
-    "zadapter/heartbeating"
-    "zadapter/stamps"
-    "zadapter/crc"
-    "zadapter"
-    "zadapter/define"
-    "zadapter/logger"
+    "river-node/heartbeating"
+    "river-node/stamps"
+    "river-node/crc"
+    "river-node"
+    "river-node/define"
+    "river-node/logger"
     
  
     "fmt"
@@ -15,7 +15,7 @@ import (
     "testing"	
 )
  
- func TestAdapters(t *testing.T) {
+ func TestNodes(t *testing.T) {
     defer logger.Flush()
     
     /*此管道的作用是测试信号的生成*/
@@ -39,28 +39,28 @@ import (
      
  
 
-	/** 下面这一行的前提前提条件是Adapters这个map不为空
+	/** 下面这一行的前提前提条件是Nodes这个map不为空
 
 	 * 也就是说已通过如下方式实现了初始化：
-	   import "zadapter/heartbreating"或
-	   import "zadapter/crc"或
-	   import "zadapter/stamps"
+	   import "/heartbreating"或
+	   import "river-node/crc"或
+	   import "river-node/stamps"
 
 	 * golang的机制决定了即使在遵循单向调用链模式的前提现某个包被多个包同时引用
 	   这个被引用包无论是整体还是内部字段都只会存在唯一的一份副本，即使是package fmt也是如此
 
 	 * 于是引入顺序偶尔也变得比较重要，比如当前的情况：
-	   "zadapter/heartbeating"
-	   "zadapter/define"
-	   "zadapter/logger"
+	   "river-node/heartbeating"
+	   "river-node/define"
+	   "river-node/logger"
 	   由于logger是被所有功能包都会调用的工具包，所以必须确保其先完成初始化
 	   不会这里也不是必须在最下方，因为最下方的只是最先被塞进内存，或者说完成预加载
 	   真正的初始化则是当前测试函数的第一句
 	   只要确保logger的“初始化”在所有的包真正去使用他之前完成即可
 	 */
-    heartBeatingAbsf := zadapter.Adapters[heartbeating.ADAPTER_NAME]
-    stampsAbsf := zadapter.Adapters[stamps.ADAPTER_NAME]
-    crcAbsf := zadapter.Adapters[crc.ADAPTER_NAME]
+    heartBeatingAbsf := river_node.Nodes[heartbeating.RIVER_NODE_NAME]
+    stampsAbsf := river_node.Nodes[stamps.RIVER_NODE_NAME]
+    crcAbsf := river_node.Nodes[crc.RIVER_NODE_NAME]
  
     /** heartBeatingAbsf只是一个能返回接口实体的函数
     
@@ -84,7 +84,7 @@ import (
 	   归根揭底数据流动也只是一种设计模式，和这里所设计的适配器模式一样都是设计模式
 	   只要是设计模式，那么首要任务都是为了方便日后的代码维护
 	   同时，对于下面要进行的管道对接操作其实不该在这里实现的，在设计哲学上说不通
-       而应该是在“使用package zadapter”里进行相关的操作
+       而应该是在“使用package river-node”里进行相关的操作
        
 	 * 下面只是简单的演示一下
      */
@@ -97,7 +97,7 @@ import (
     }
  
     if err := heartBeatingAbs.Init(heartBeatingConfig); err == nil {
-        logger.Info("test adapter init success")
+        logger.Info("test river-node init success")
     }
  
     heartBeatingAbs.Run()
@@ -125,7 +125,7 @@ import (
     } 
 
     if err := stampsAbs.Init(stampsConfig); err == nil {
-        logger.Info("test adapter init success")
+        logger.Info("test river-node init success")
     }
  
     stampsAbs.Run()
@@ -151,7 +151,7 @@ import (
     } 
 
     if err := crcAbs.Init(crcConfig); err == nil {
-        logger.Info("test adapter init success")
+        logger.Info("test river-node init success")
     }
 
     crcAbs.Run()
@@ -181,22 +181,22 @@ import (
                 heartBeatingAbs.Run()
 
             case define.CRC_NORMAL:
-                fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
+                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
             case define.CRC_UPSIDEDOWN:
-                fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
+                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
             case define.CRC_NOTPASS:
                 fmt.Println("signal:", "CRC_NOTPASS")
             case define.ANOTHEREXAMPLE_TEST1:
-                fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
+                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
             case define.ANOTHEREXAMPLE_TEST2:
-                fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
+                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
             case define.ANOTHEREXAMPLE_TEST3:
-                fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
+                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
             case define.ANOTHEREXAMPLE_ERR:
-                fmt.Println("这里不过多进行演示，详细的演示会在zadapter/test包内进行")
+                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
             default:
                 fmt.Println("未知的适配器返回了未知的信号类型这里不过多进行演示，"+
-                            "详细的演示会在zadapter/test包内进行")
+                            "详细的演示会在river-node/test包内进行")
             }			
         }
     }()
@@ -328,7 +328,7 @@ import (
  
      //这里的测试并没有实现CRC适配器与Stamps包的任何对象，所以测试到此未知
  
-     //复杂些的，会同时包含数据处理与传递的测试实例请看package zadapter/test所包含的内容
+     //复杂些的，会同时包含数据处理与传递的测试实例请看package river-node/test所包含的内容
      
     select{}
  }

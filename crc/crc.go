@@ -1,9 +1,9 @@
 package crc
 
 import (
-	"zadapter"
-	"zadapter/define"
-	"zadapter/logger"
+	"river-node"
+	"river-node/define"
+	"river-node/logger"
 
 	//"fmt"
 	"bytes"
@@ -14,7 +14,7 @@ import (
 )
 
 
-const ADAPTER_NAME = "crc"
+const RIVER_NODE_NAME = "crc"
 
 
 
@@ -44,7 +44,7 @@ type CRCConfig struct{
 
 
 func (p *CRCConfig)Name()string{
-	return ADAPTER_NAME
+	return RIVER_NODE_NAME
 }
 
 
@@ -56,12 +56,12 @@ type CRC struct{
 }
 
 func (p *CRC)Name()string{
-	return ADAPTER_NAME
+	return RIVER_NODE_NAME
 }
 
-func (p *CRC)Init(CRCConfigAbs zadapter.Config) error{
-	if CRCConfigAbs.Name() != ADAPTER_NAME {
-		return errors.New("crc adapter init error, config must CRCConfig")
+func (p *CRC)Init(CRCConfigAbs river_node.Config) error{
+	if CRCConfigAbs.Name() != RIVER_NODE_NAME {
+		return errors.New("crc river_node init error, config must CRCConfig")
 	}
 
 
@@ -70,19 +70,19 @@ func (p *CRC)Init(CRCConfigAbs zadapter.Config) error{
 
 
 	if ccrc.UniqueId == "" {
-		return errors.New("crc adapter init error, uniqueId is nil")
+		return errors.New("crc river_node init error, uniqueId is nil")
 	}
 
 	if ccrc.SignalChan == nil{
-		return errors.New("crc adapter init error, signalChan is nil")
+		return errors.New("crc river_node init error, signalChan is nil")
 	}
 
 	if ccrc.Mode ==NEWCHAN&&ccrc.RawinChan == nil{
-		return errors.New("newchan mode crc adapter init error, slotChan is nil") 
+		return errors.New("newchan mode crc river-node init error, slotChan is nil") 
 	}
 
 	if ccrc.Mode != NEWCHAN&&ccrc.Mode != READONLY {
-		return errors.New("newchan mode crc adapter init error, unknown mode") 
+		return errors.New("newchan mode crc river-node init error, unknown mode") 
 	}
 	
 	
@@ -148,14 +148,14 @@ func (p *CRC)Run(){
 
 
 
-func NewCRC() zadapter.AdapterAbstract {
+func NewCRC() river_node.NodeAbstract {
 	return &CRC{}
 }
 
 
 func init() {
-	zadapter.Register(ADAPTER_NAME, NewCRC)
-	logger.Info("预加载完成，CRC校验适配器已预加载至package zadapter.Adapters结构内")
+	river_node.Register(RIVER_NODE_NAME, NewCRC)
+	logger.Info("预加载完成，CRC校验适配器已预加载至package river_node.Nodes结构内")
 }
 
 

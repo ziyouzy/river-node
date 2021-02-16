@@ -1,4 +1,4 @@
-module zadapter
+module river-node
 
 go 1.15
 

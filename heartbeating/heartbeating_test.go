@@ -5,10 +5,10 @@ import (
 	//"time"
 	"testing"	
 
-	"zadapter"
+	"river-node"
 )
 
 
 func TestHeartBreating(t *testing.T) {
-	fmt.Println(zadapter.Adapters)
+	fmt.Println(river_node.Nodes)
 }

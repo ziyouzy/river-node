@@ -7,16 +7,16 @@
 package heartbeating
 
 import (
-	"zadapter"
-	"zadapter/define"
-	"zadapter/logger"
+	"river-node"
+	"river-node/define"
+	"river-node/logger"
 
 	"time"
 	"reflect"
 	"errors"
 )
 
-const ADAPTER_NAME = "heartbeating"
+const RIVER_NODE_NAME = "heartbeating"
 
 
 
@@ -38,7 +38,7 @@ type HeartBeatingConfig struct{
 }
 
 func (p *HeartBeatingConfig)Name()string{
-	return ADAPTER_NAME
+	return RIVER_NODE_NAME
 }
 
 
@@ -49,12 +49,12 @@ type HeartBeating struct{
 }
 
 func (p *HeartBeating)Name()string{
-	return ADAPTER_NAME
+	return RIVER_NODE_NAME
 }
 
-func (p *HeartBeating)Init(heartBeatingConfigAbs zadapter.Config) error{
-	if heartBeatingConfigAbs.Name() != ADAPTER_NAME {
-		return errors.New("heartbeating adapter init error, config must HeartBreatingConfig")
+func (p *HeartBeating)Init(heartBeatingConfigAbs river_node.Config) error{
+	if heartBeatingConfigAbs.Name() != RIVER_NODE_NAME {
+		return errors.New("heartbeating river-node init error, config must HeartBreatingConfig")
 	}
 
 
@@ -63,11 +63,11 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs zadapter.Config) error{
 
 
 	if chb.Timeout == (0 * time.Second) || chb.UniqueId == "" {
-		return errors.New("heartbeating adapter init error, timeout or uniqueId is nil")
+		return errors.New("heartbeating river-node init error, timeout or uniqueId is nil")
 	}
 
 	if chb.SignalChan == nil || chb.RawinChan == nil{
-		return errors.New("heartbeating adapter init error, rawChan or signalChan is nil")
+		return errors.New("heartbeating river-node init error, rawChan or signalChan is nil")
 	}
 	
 	
@@ -144,20 +144,20 @@ func (p *HeartBeating)Run(){
 
 
 
-/** 下面是对package zadapter中的map进行初始化
+/** 下面是对package river-node中的map进行初始化
 
  * 真正使用他的上层一定会遍历各个map
  * 从而识别并确认都有哪些已经注册并在册的预编译适配器
  */
 
-func NewHeartbBreating() zadapter.AdapterAbstract {
+func NewHeartbBreating() river_node.NodeAbstract {
 	return &HeartBeating{}
 }
 
 
 func init() {
-	zadapter.Register(ADAPTER_NAME, NewHeartbBreating)
-	logger.Info("预加载完成，心跳包适配器已预加载至package zadapter.Adapters结构内")
+	river_node.Register(RIVER_NODE_NAME, NewHeartbBreating)
+	logger.Info("预加载完成，心跳包适配器已预加载至package river_node.Nodes结构内")
 }
 	
 

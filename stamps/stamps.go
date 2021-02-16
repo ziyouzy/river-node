@@ -1,16 +1,16 @@
 package stamps
 
 import (
-	"zadapter"
-	//"zadapter/define"	/*暂时没有需要返回给上层的signal内容*/
-	"zadapter/logger"
+	"river-node"
+	//"river-node/define"	/*暂时没有需要返回给上层的signal内容*/
+	"river-node/logger"
 	
 	"bytes"
 	"reflect"
 	"errors"
 )
 
-const ADAPTER_NAME = "stamps"
+const RIVER_NODE_NAME = "stamps"
 
 
 
@@ -38,7 +38,7 @@ type StampsConfig struct{
 }
 
 func (p *StampsConfig)Name()string{
-	return ADAPTER_NAME
+	return RIVER_NODE_NAME
 }
 
 
@@ -50,12 +50,12 @@ type Stamps struct{
 }
 
 func (p *Stamps)Name()string{
-	return ADAPTER_NAME
+	return RIVER_NODE_NAME
 }
 
-func (p *Stamps)Init(stampsConfigAbs zadapter.Config) error{
-	if stampsConfigAbs.Name() != ADAPTER_NAME {
-		return errors.New("stamps adapter init error, config must StampsConfig")
+func (p *Stamps)Init(stampsConfigAbs river_node.Config) error{
+	if stampsConfigAbs.Name() != RIVER_NODE_NAME {
+		return errors.New("stamps river-node init error, config must StampsConfig")
 	}
 
 
@@ -64,12 +64,12 @@ func (p *Stamps)Init(stampsConfigAbs zadapter.Config) error{
 
 
 	if cs.Breaking == nil || cs.Stamps == nil {
-		return errors.New("stamps adapter init error, breaking or stamps is nil")
+		return errors.New("stamps river-node init error, breaking or stamps is nil")
 	}
 
 	/*此适配器的signalChan可以为空*/
 	if cs.RawinChan == nil || cs.NewoutChan ==nil{
-		return errors.New("stamps adapter init error, slotChan or signalChan "+
+		return errors.New("stamps river-node init error, slotChan or signalChan "+
 		                  "or newChan is nil")
 	}
 	
@@ -118,14 +118,14 @@ func (p *Stamps)Run(){
  * 从而识别并确认都有哪些已经注册并在册的预编译适配器
  */
 
-func NewStamps() zadapter.AdapterAbstract {
+func NewStamps() river_node.NodeAbstract {
 	return &Stamps{}
 }
 
 
 func init() {
-	zadapter.Register(ADAPTER_NAME, NewStamps)
-	logger.Info("预加载完成，印章适配器已预加载至package zadapter.Adapters结构内")
+	river_node.Register(RIVER_NODE_NAME, NewStamps)
+	logger.Info("预加载完成，印章适配器已预加载至package river_node.Nodes结构内")
 }
 
 

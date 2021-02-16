@@ -21,6 +21,6 @@ type AnotherStruct struct{
 type AnotherFunc func([]byte)
 
 func testFunc(sl []byte){
-	fmt.Println("this is the test of zadapter/anotherexample/another/"+
+	fmt.Println("this is the test of river-node/anotherexample/another/"+
 	            "struct of AnoterFunc/testFunc(), sl is:",sl)
 }

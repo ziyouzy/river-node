@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"testing"	
 
-	"zadapter"
+	"river-node"
 
 )
 
 
 func TestCRC(t *testing.T) {
-	fmt.Println(zadapter.Adapters)
+	fmt.Println(river_node.Nodes)
 }
