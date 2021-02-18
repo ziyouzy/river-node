@@ -94,7 +94,9 @@ func (p *HeartBeating)Run(){
 		  
 		p.timer = time.NewTimer(p.config.Timeout)
 	}else{
+		
 		p.timer.Reset(p.config.Timeout)
+		
 	}
 
 
