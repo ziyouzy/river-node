@@ -16,28 +16,24 @@ import (
 
 const RIVER_NODE_NAME = "crc"
 
-
+var signal_run,signal_normal,signal_upsidedown,error_notpass = river_node.Signal
 
 type CRCConfig struct{
-
-	UniqueId string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
-
+	   UniqueId 		string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
+	 	Signals 		chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	  	 Errors 		chan error
 	/** 有两种模式：define.READONLY和define.NEWCHAN
 	 * 前者只判定当前字节序列是否能通过CRC校验
 	 * 后者则校验后生成新的数据管道 
 	 */
+		   Mode 		int 
+	IsBigEndian 		bool
+		   Raws 		chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-	Mode int 
-
-	IsBigEndian bool
 
 
-	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
-
-	RawinChan chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
-
-	NewoutChan chan []byte /*校验通过切去掉校验码的新切片*/
-	ErroutChan chan []byte /*校验未通过的原始校验码*/
+	   PassNews 		chan []byte /*校验通过切去掉校验码的新切片*/
+	NotPassNews 		chan []byte /*校验未通过的原始校验码*/
 }
 
 
@@ -50,9 +46,9 @@ func (p *CRCConfig)Name()string{
 
 
 type CRC struct{
-	mbTable []uint16
-	bytesHandler *bytes.Buffer
-	config *CRCConfig
+	    mbTable 		[]uint16
+   bytesHandler 		*bytes.Buffer
+	     config 		*CRCConfig
 }
 
 func (p *CRC)Name()string{
@@ -65,28 +61,32 @@ func (p *CRC)Init(CRCConfigAbs river_node.Config) error{
 	}
 
 
-	vcrc := reflect.ValueOf(CRCConfigAbs)
-	ccrc := vcrc.Interface().(*CRCConfig)
+	v := reflect.ValueOf(CRCConfigAbs)
+	c := vcrc.Interface().(*CRCConfig)
 
 
-	if ccrc.UniqueId == "" {
+	if c.UniqueId == "" {
 		return errors.New("crc river_node init error, uniqueId is nil")
 	}
 
-	if ccrc.SignalChan == nil{
-		return errors.New("crc river_node init error, signalChan is nil")
+	if c.Signals == nil || c.Errors == nil{
+		return errors.New("crc river_node init error, Signals or Errors is nil")
 	}
 
-	if ccrc.Mode ==NEWCHAN&&ccrc.RawinChan == nil{
-		return errors.New("newchan mode crc river-node init error, slotChan is nil") 
+	if c.Mode ==NEWCHAN&&c.Raws == nil{
+		return errors.New("newchan mode crc river-node init error, Raws is nil") 
 	}
 
-	if ccrc.Mode != NEWCHAN&&ccrc.Mode != READONLY {
+	if c.Mode != NEWCHAN&&c.Mode != READONLY {
 		return errors.New("newchan mode crc river-node init error, unknown mode") 
 	}
+
+	if c.Raws == nil || c.PassNews == nil c.NotPassNews ==nil {
+		return errors.New("newchan mode crc river-node init error, Raws or PassNews or NotPassNews is nil")
+	}
 	
 	
-	p.config = ccrc
+	p.config = c
 
 	p.mbTable = []uint16{
 		0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,
@@ -124,22 +124,28 @@ func (p *CRC)Init(CRCConfigAbs river_node.Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
+	signal_run 		  = river_node.NewSignal(river_node.CRC_RUN, p.UniqueId)
+	signal_normal 	  = river_node.NewSignal(river_node.CRC_NORMAL, p.UniqueId) 
+	signal_upsidedown = river_node.NewSignal(river_node.CRC_UPSIDEDOWN, p.UniqueId)
+	error_notpass 	  = river_node.NewError(river_node.CRC_NOTPASS, p.UniqueId)
+
 	return nil
 }
 
 
-
 func (p *CRC)Run(){
+	p.Config.Signals <- signal_run
+
 	switch p.config.Mode{
 	case READONLY:
 		go func(){
-			for mb := range p.config.RawinChan{
+			for mb := range p.config.Raws{
 				p.readOnlyCheck(mb)
 			}
 		}()
 	case NEWCHAN:
 		go func(){
-			for mb := range p.config.RawinChan{
+			for mb := range p.config.Raws{
 				p.newChanCheck(mb)
 			}
 		}()
@@ -167,15 +173,16 @@ func init() {
 
 
 //验证一个需要验证的modbus码
-func (p *CRC)readOnlyCheck(mb []byte){
+func (p *CRC)readOnlyCheck(mb []byte){ 
+
 	raw,crc := p.midModbus(mb) 
 
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		p.config.SignalChan <- define.CRC_NORMAL
+		p.config.Signals <- signal_normal
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		p.config.SignalChan <- define.CRC_UPSIDEDOWN
+		p.config.Signals <- signal_upsidedown
 	}else{
-		p.config.SignalChan <- define.CRC_NOTPASS
+		p.config.Errors <- error_notpass
 	}
 }
 
@@ -184,25 +191,25 @@ func (p *CRC)newChanCheck(mb []byte){
 	raw,crc := p.midModbus(mb) 
 
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		p.config.SignalChan <- define.CRC_NORMAL
+		p.config.Signals <- signal_normal
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
-		p.config.NewoutChan <-p.bytesHandler.Bytes()
+		p.config.Pass <-p.bytesHandler.Bytes()
 
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		p.config.SignalChan <- define.CRC_UPSIDEDOWN
+		p.config.Signals <- signal_upsidedown
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
-		p.config.NewoutChan <-p.bytesHandler.Bytes()
+		p.config.Pass <-p.bytesHandler.Bytes()
 
 	}else{
-		p.config.SignalChan <- define.CRC_NOTPASS
+		p.config.Errors <- error_notpass
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(mb)
-		p.config.ErroutChan <- p.bytesHandler.Bytes()
+		p.config.NotPass <- p.bytesHandler.Bytes()
 	}
 }
 

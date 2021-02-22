@@ -18,23 +18,25 @@ import (
 
 const RIVER_NODE_NAME = "heartbeating"
 
-
+var signal_run,signal_rebuild,signal_normal,error_timeout river_node.Signal 
 
 type HeartBeatingConfig struct{
-
-	Timeout time.Duration
-
-	UniqueId string	/*其所属上层Conn的唯一识别标识*/
-	
-	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
-
+	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
+	 Signals 		chan river_node.Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	  Errors 		chan error
 
 	/** 虽然是面向[]byte的适配器，但是并不需要[]byte做任何操作
 	 * 所以在这里遵循golang的设计哲学
 	 * 使用struct{}作为事件的传递介质
 	 */
 
-	RawinChan chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	 Timeout 		time.Duration
+		Raws 		chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
+		 
+
+
+		//News 此包不会生成新的管道数据
+
 }
 
 func (p *HeartBeatingConfig)Name()string{
@@ -42,10 +44,13 @@ func (p *HeartBeatingConfig)Name()string{
 }
 
 
-
+/** rnode节点自身所包含的字段要么是config，
+ * 要么是一些golang如time.Timer的内置字段
+ * 后期也可能会遇到装配一些第三方包内工具对象的时候
+ */
 type HeartBeating struct{
-	timer *time.Timer
-	config *HeartBeatingConfig
+	timer 			*time.Timer
+	config 			*HeartBeatingConfig
 }
 
 func (p *HeartBeating)Name()string{
@@ -58,24 +63,30 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs river_node.Config) error{
 	}
 
 
-	vhb := reflect.ValueOf(heartBeatingConfigAbs)
-	chb := vhb.Interface().(*HeartBeatingConfig)
+	v := reflect.ValueOf(heartBeatingConfigAbs)
+	c := v.Interface().(*HeartBeatingConfig)
 
 
-	if chb.Timeout == (0 * time.Second) || chb.UniqueId == "" {
+	if c.Timeout == (0 * time.Second) || c.UniqueId == "" {
 		return errors.New("heartbeating river-node init error, timeout or uniqueId is nil")
 	}
 
-	if chb.SignalChan == nil || chb.RawinChan == nil{
-		return errors.New("heartbeating river-node init error, rawChan or signalChan is nil")
+	if c.Signals == nil || c.Raws == nil || c.Errors == nil{
+		return errors.New("heartbeating river-node init error, Raws or Signals "+ 
+		                  "or Errors is nil")
 	}
 	
 	
-	p.config = chb
+	p.config = c
 
+	signal_run 		= river_node.NewSignal(river_node.HEARTBREATING_RUN,p.UniqueId)
+	signal_rebuild 	= river_node.NewSignal(river_node.HEARTBREATING_REBUILD,p.UniqueId)
+	signal_normal 	= river_node.NewSignal(river_node.HEARTBREATING_NORMAL,p.UniqueId)
+	error_timeout 	= river_node.NewError(river_node.HEARTBREATING_TIMEOUT,p.UniqueId)
 
 	return nil
 }
+
 
 
 /** Run()必须确保不返回error、不fmt错误
@@ -84,7 +95,7 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs river_node.Config) error{
  * Run()的一切问题都通过signal的方式传递至管道
  */
 func (p *HeartBeating)Run(){
-
+	p.config.Signals <- signal_run
 	if p.timer ==nil{
 
 		/** 这里针对的是第一个从slot传来的事件
@@ -94,8 +105,9 @@ func (p *HeartBeating)Run(){
 		  
 		p.timer = time.NewTimer(p.config.Timeout)
 	}else{
-		
+
 		p.timer.Reset(p.config.Timeout)
+		p.config.Signals <- signal_rebuild
 		
 	}
 
@@ -125,19 +137,18 @@ func (p *HeartBeating)Run(){
 
 		for {
 			select {
-			case <-p.timer.C:
-				
-				p.config.SignalChan<-define.HEARTBREATING_TIMEOUT
-				if len(p.config.RawinChan)>0{ _ = <-p.config.RawinChan }
+			case <-p.timer.C://心跳包超时				
+				p.config.Errors <- error_timeout
+				if len(p.config.Raws)>0{ _ = <-p.config.Raws }
 				return
 
-			case <-p.config.RawinChan:
+			case <-p.config.Raws:
 
 				/*Reset一个timer前必须先正确的关闭它*/
 				if p.timer.Stop() == STOPAFTEREXPIRE{ _ = <-p.timer.C }
 				/*正式Reset*/
 				p.timer.Reset(p.config.Timeout)
-				p.config.SignalChan<-define.HEARTBREATING_NORMAL
+				p.config.Signals <- signal_normal
 
 			}
 		}

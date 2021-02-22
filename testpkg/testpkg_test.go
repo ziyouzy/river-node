@@ -15,27 +15,34 @@ import (
     "testing"	
 )
  
+/*此测试函数在实战中等同于一个zconn的初始化操作
+ * 因此当zconn被销毁时这里的hbRaws，stampsRaws，stampsNews，需要预先被销毁
+ * nodeHeartBeating,nodeStamps,nodeCRC也需要预先被销毁
+ * 他们这两个我自定义的复杂数据类型地位是平级的
+ */
  func TestNodes(t *testing.T) {
     defer logger.Flush()
     
     /*此管道的作用是测试信号的生成*/
     testBytesSenderCh := make(chan []byte)
 
-    /*主线程中signal的统一管理管道*/
-    mainTestSignalCh := make(chan int)
+    /*主线程是signal与error的统一管理管道*/
+    signals           := make(chan Signal)
+    errors            := make(chan error)
 
     /*心跳包的事件注入管道*/
-    mainTestHbRawinCh := make(chan struct{})
-    /*印章包的事件注入管道*/
-    mainTestStampsRawinCh := make(chan []byte)
+    hbRaws            := make(chan struct{})
+
     /*CRC校验包的事件注入管道*/
-    mainTestCRCRawinCh := make(chan []byte)
- 
-    /*印章包会生成的新数据流*/
-    mainTestStampsNewoutCh := make(chan []byte)
+    crcRaws           := make(chan []byte)
     /*CRC校验包会生成的新数据流*/
-    mainTestCRCNewoutCh := make(chan []byte)
-    mainTestCRCErroutCh := make(chan []byte)
+    crcPassNews       := make(chan []byte)
+    crcNotPassNews    := make(chan []byte)
+
+    /*印章包的事件注入管道*/
+    stampsRaws        := make(chan []byte)
+    /*印章包会生成的新数据流*/
+    stampsNews        := make(chan []byte)
      
  
 
@@ -58,9 +65,9 @@ import (
 	   真正的初始化则是当前测试函数的第一句
 	   只要确保logger的“初始化”在所有的包真正去使用他之前完成即可
 	 */
-    heartBeatingAbsf := river_node.Nodes[heartbeating.RIVER_NODE_NAME]
-    stampsAbsf := river_node.Nodes[stamps.RIVER_NODE_NAME]
-    crcAbsf := river_node.Nodes[crc.RIVER_NODE_NAME]
+    heartBeatingAbsf    := river_node.Nodes[heartbeating.RIVER_NODE_NAME]
+    stampsAbsf          := river_node.Nodes[stamps.RIVER_NODE_NAME]
+    crcAbsf             := river_node.Nodes[crc.RIVER_NODE_NAME]
  
     /** heartBeatingAbsf只是一个能返回接口实体的函数
     
@@ -73,9 +80,9 @@ import (
 	   上一步只是从目录里挑出一个需要使用的对象的“标签”
 	   逻辑上有一点像是个“路径”
 	 */
-    heartBeatingAbs := heartBeatingAbsf()
-    stampsAbs := stampsAbsf()
-    crcAbs := crcAbsf()
+    nodeHeartBeating     := heartBeatingAbsf()
+    nodeStampsAbsNode    := stampsAbsf()
+    nodeCRC              := crcAbsf()
  
  
     /** 拿到对象类后，内部字段很多都是空的，所以需要进行初始化
@@ -88,22 +95,25 @@ import (
        
 	 * 下面只是简单的演示一下
      */
-//----------
+/*----------在实战中，每一个zconn会分别包含一个heartbreat，
+            一个crc，一个stamps，于是当zconn被销毁时，也就需要先销毁他们三个
+            */
     heartBeatingConfig := &heartbeating.HeartBeatingConfig{
-        UniqueId : "testPkg",
-        Timeout : 8 * time.Second,
-        SignalChan : mainTestSignalCh,
-        RawinChan : mainTestHbRawinCh,
+        UniqueId:   "testPkg",
+         Timeout:   8 * time.Second,
+         Signals:   signals,
+          Errors:   errors,
+            Raws:   hbRaws,
     }
  
-    if err := heartBeatingAbs.Init(heartBeatingConfig); err == nil {
+    if err := nodeHeartBeating.Init(heartBeatingConfig); err == nil {
         logger.Info("test river-node init success")
     }
  
-    heartBeatingAbs.Run()
+    nodeHeartBeating.Run()
 //----------
-    stampsConfig := &stamps.StampsConfig{
-        UniqueId : "testPkg",
+    stampsConfig       := &stamps.StampsConfig{
+        UniqueId:   "testPkg",
 	
         /** 分为三种，HEAD、TAIL、HEADANDTAIL
          * 当是HEADANDTAIL模式，切len(stamp)>1时
@@ -111,93 +121,111 @@ import (
          * stamp1+raw(首部);raw+stamp2(尾部);stamp3+raw(首部);raw+stamp4(尾部);stamp5+raw(首部);....
          * 这样的首尾交替规律的拼接方式
          */
-        Mode : stamps.HEADANDTAIL, 
-    
-        Breaking : []byte("+"), /*戳与数据间的分隔符，可以为nil*/
-    
-        Stamps : [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/
-    
-        SignalChan : mainTestSignalCh,/*发送给主进程的信号队列，就像Qt的信号与槽*/
-    
-        RawinChan : mainTestStampsRawinCh,/*从主线程发来的信号队列，就像Qt的信号与槽*/
-    
-        NewoutChan :  mainTestStampsNewoutCh,/*校验通过切去掉校验码的新切片*/
+            Mode:   stamps.HEADANDTAIL, 
+        Breaking:   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
+          Stamps:   [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/
+         Signals:   signals,/*发送给主进程的信号队列，就像Qt的信号与槽*/
+          Errors:   errors,
+            Raws:   stampRaws,/*从主线程发来的信号队列，就像Qt的信号与槽*/
+            News:   stampNews,/*校验通过切去掉校验码的新切片*/
     } 
 
-    if err := stampsAbs.Init(stampsConfig); err == nil {
+    if err := nodeStamps.Init(stampsConfig); err == nil {
         logger.Info("test river-node init success")
     }
  
-    stampsAbs.Run()
+    nodeStamps.Run()
 //-----------
-    crcConfig := &crc.CRCConfig{
-        UniqueId : "testPkg",
+    crcConfig          := &crc.CRCConfig{
+        UniqueId:   "testPkg",
 
 	    /** 有两种模式：define.READONLY和define.NEWCHAN
 	    * 前者只判定当前字节序列是否能通过CRC校验
 	    * 后者则校验后生成新的数据管道 
 	    */
 
-	    Mode : crc.NEWCHAN,
-
-	    IsBigEndian : crc.ISBIGENDDIAN,
-
-        SignalChan : mainTestSignalCh, /*发送给主进程的信号队列，就像Qt的信号与槽*/
-
-	    RawinChan : mainTestCRCRawinCh, /*从主线程发来的信号队列，就像Qt的信号与槽*/
-
-	    NewoutChan : mainTestCRCNewoutCh, /*校验通过切去掉校验码的新切片*/
-        ErroutChan : mainTestCRCErroutCh, /*校验未通过的原始校验码*/
+	        Mode:   crc.NEWCHAN,
+	 IsBigEndian:   crc.ISBIGENDDIAN,
+         Signals:   signals, /*发送给主进程的信号队列，就像Qt的信号与槽*/
+          Errors:   errors,
+	        Raws:   crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	    PassNews:   crcPassNews, /*校验通过切去掉校验码的新切片*/
+     NotPassNews:   crcNotPassNews, /*校验未通过的原始校验码*/
     } 
 
-    if err := crcAbs.Init(crcConfig); err == nil {
+    if err := NodeCRC.Init(crcConfig); err == nil {
         logger.Info("test river-node init success")
     }
 
-    crcAbs.Run()
-
+    NodeCRC.Run()
+//--------------------
 
  
-	/** 业务流程的第一步，先进行signal的统一回收工作 
-    
-     * 注意，这里会进行的是“！所有！”信号的回收
-       此线程的作用是信号的处理
-	 */
+	/*对signal与error进行统一回收和编排对应的触发事件*/
     go func(){
-        defer close(mainTestSignalCh)
-        for signal := range mainTestSignalCh{
-            switch signal{
-            case define.HEARTBREATING_INIT:
-                fmt.Println("signal:", "HEARTBREATING_INIT")
-            case define.HEARTBREATING_NORMAL:
-                fmt.Println("signal:", "HEARTBREATING_NORMAL")
-            case define.HEARTBREATING_TIMEOUT:
-                fmt.Println("signal:", "HEARTBREATING_TIMEOUT",
-                             "一旦识别出此信号，那么就说明发出这信号的心跳包已经自我销毁了"+
-                             "接下来会对该心跳包所属链接进行必要的析构操作(如从总连接map中剔除),"+
-                             "最后会等待该客户端再次发出的握手请求事件，"+
-                             "当前进行的是重启原心跳包的监听工作，但是实际场景中不会这么做，"+
-                             "说个额外的内容，心跳包适配器的生命周期是整个软件的主函数")
-                heartBeatingAbs.Run()
+        /** 最后再统一思考关闭的操作吧
+         * defer close(signals)
+         * defer close(errors)
+         */
+        for {
+            select{
+            case sig := <-signals:
+                /*最重要的是，触发某个事件后，接下来去做什么*/
+                uniqueid, code, detail := sig.Description()
+                switch code{
+                case HEARTBREATING_RUN:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case HEARTBREATING_REBUILD:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case HEARTBREATING_NORMAL:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case HEARTBREATING_DROPCONN:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                    fmt.Println("心跳包连续多(5)次超时无响应，因此断开当前客户端连接")
+                // case HEARTBREATING_TIMEOUT://这是一个错误，需要在hb包内解决问题，而不是在这里
+                //     fmt.Println(uniqueid, "-detail:", detail,
+                //                  "一旦识别出此信号，那么就说明发出这信号的心跳包已经自我销毁了"+
+                //                  "接下来会对该心跳包所属链接进行必要的析构操作(如从总连接map中剔除),"+
+                //                  "最后会等待该客户端再次发出的握手请求事件，"+
+                //                  "当前进行的是重启原心跳包的监听工作，但是实际场景中不会这么做，"+
+                //                  "说个额外的内容，心跳包适配器的生命周期是整个软件的主函数")
+                //     heartBeatingAbs.Run()
+    
+                case CRC_RUN:
+                    fmt.Println("CRC校验适配器被激活")
+                case CRC_NORMAL:
+                    fmt.Println("CRC成功校验某字节组")
+                case CRC_UPSIDEDOWN:
+                    fmt.Println("CRC校验检测出某字节组的校验码大小端反了")
+                case CRC_REVERSEENDIAN:
+                    fmt.Println("CRC校验适配器已自动将大小端进行了翻转")
+                case CRC_DROPCONN:
+                    fmt.Println("CRC校验连续多(20)次出错，因此断开当前客户端连接")
+                // case CRC_NOTPASS://这是一个错误，需要在crc包内解决问题，而不是在这里
+                //     fmt.Println("signal:", "CRC_NOTPASS")
+                case STAMPS_RUN:
+                    fmt.Println("STAMPS适配器被激活")
 
-            case define.CRC_NORMAL:
-                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
-            case define.CRC_UPSIDEDOWN:
-                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
-            case define.CRC_NOTPASS:
-                fmt.Println("signal:", "CRC_NOTPASS")
-            case define.ANOTHEREXAMPLE_TEST1:
-                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
-            case define.ANOTHEREXAMPLE_TEST2:
-                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
-            case define.ANOTHEREXAMPLE_TEST3:
-                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
-            case define.ANOTHEREXAMPLE_ERR:
-                fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
-            default:
-                fmt.Println("未知的适配器返回了未知的信号类型这里不过多进行演示，"+
-                            "详细的演示会在river-node/test包内进行")
-            }			
+                case ANOTHEREXAMPLE_TEST1:
+                    fmt.Println("ANOTHEREXAMPLE_TEST1测试成功")
+                case ANOTHEREXAMPLE_TEST2:
+                    fmt.Println("ANOTHEREXAMPLE_TEST2测试成功")
+                case ANOTHEREXAMPLE_TEST3:
+                    fmt.Println("ANOTHEREXAMPLE_TEST3测试成功")
+                case ANOTHEREXAMPLE_ERR:
+                    fmt.Println("ANOTHEREXAMPLE_ERR测试成功")
+                default:
+                    fmt.Println("未知的适配器返回了未知的信号类型这里不过多进行演示，"+
+                                "详细的演示会在river-node/test包内进行")
+                }			
+                
+
+
+            case err := <-errors:
+                fmt.Println(err.Error())
+                //实战中这里会进行日志的记录
+
+            }
         }
     }()
  
@@ -240,14 +268,14 @@ import (
 	 * 此线程的作用是信号的处理
 	 */
     go func(){
-        defer close(mainTestHbRawinCh)
-        defer close(mainTestStampsRawinCh)
+        defer close(hbRaws)
+        defer close(stampsRaws)
         //defer close(mainTestCRCRawCh)
         for bytes := range testBytesSenderCh{
             fmt.Println("bytes is", bytes)
  
-            mainTestHbRawinCh <- struct{}{}
-            mainTestStampsRawinCh <- bytes	
+            hbRaws <- struct{}{}
+            stampsRaws <- bytes	
 
             /** 事情要一件一件完成
             

@@ -10,5 +10,5 @@ import (
 
 
 func TestStamps(t *testing.T) {
-	fmt.Println(river_node.Nodes)
+	fmt.Println(river_node.RNodes)
 }

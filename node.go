@@ -16,26 +16,31 @@
 package river_node
 
 
-var Nodes = make(map[string]nodeAbstractFunc)
 
-type nodeAbstractFunc func() NodeAbstract
 
-type NodeAbstract interface {
+
+var RNodes = make(map[string]rNodeAbstractFunc)
+
+
+type rNodeAbstractFunc func() RNodeAbstract
+
+
+type RNodeAbstract interface {
 	Name() string
 	Init(config Config) error
 	Run()
 }
 
 
-func Register(Name string, F nodeAbstractFunc) {
-	if Nodes[Name] != nil {
-		//panic("logger: logger river-node " + Name + " already registered!")
+func Register(Name string, F rNodeAbstractFunc) {
+	if RNodes[Name] != nil {
+		panic("river-node: " + Name + " already registered!")
 	}
 	
 	if F == nil {
-		//panic("logger: logger river-node " + Name + " is nil!")
+		panic("river-node: " + Name + " is nil!")
 	}
 
-	Nodes[Name] = F
+	RNodes[Name] = F
 } 
 
