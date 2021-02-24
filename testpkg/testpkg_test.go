@@ -45,56 +45,19 @@ import (
     stampsNews        := make(chan []byte)
      
  
-
-	/** 下面这一行的前提前提条件是Nodes这个map不为空
-
-	 * 也就是说已通过如下方式实现了初始化：
-	   import "/heartbreating"或
-	   import "river-node/crc"或
-	   import "river-node/stamps"
-
-	 * golang的机制决定了即使在遵循单向调用链模式的前提现某个包被多个包同时引用
-	   这个被引用包无论是整体还是内部字段都只会存在唯一的一份副本，即使是package fmt也是如此
-
-	 * 于是引入顺序偶尔也变得比较重要，比如当前的情况：
-	   "river-node/heartbeating"
-	   "river-node/define"
-	   "river-node/logger"
-	   由于logger是被所有功能包都会调用的工具包，所以必须确保其先完成初始化
-	   不会这里也不是必须在最下方，因为最下方的只是最先被塞进内存，或者说完成预加载
-	   真正的初始化则是当前测试函数的第一句
-	   只要确保logger的“初始化”在所有的包真正去使用他之前完成即可
-	 */
     heartBeatingAbsf    := river_node.Nodes[heartbeating.RIVER_NODE_NAME]
     stampsAbsf          := river_node.Nodes[stamps.RIVER_NODE_NAME]
     crcAbsf             := river_node.Nodes[crc.RIVER_NODE_NAME]
  
-    /** heartBeatingAbsf只是一个能返回接口实体的函数
-    
-	 * 在此适配器的逻辑，接口实体的形成必然滞后于一个实现了他的结构类
-	   于是这里表面上实现的是个接口，其实实现的是个结构类
-	   而这样的设计目的在于预加载，因为接口不会耗费资源
-	   但是这个结构类很耗费
-
-	 * 可以理解成执行heartBeatingAbsf这个函数才是创建了一个真正的对象
-	   上一步只是从目录里挑出一个需要使用的对象的“标签”
-	   逻辑上有一点像是个“路径”
-	 */
     nodeHeartBeating     := heartBeatingAbsf()
     nodeStampsAbsNode    := stampsAbsf()
     nodeCRC              := crcAbsf()
  
  
-    /** 拿到对象类后，内部字段很多都是空的，所以需要进行初始化
-    
-	 * 这里的实质也是对数据流动进行管道对接操作
-	   归根揭底数据流动也只是一种设计模式，和这里所设计的适配器模式一样都是设计模式
-	   只要是设计模式，那么首要任务都是为了方便日后的代码维护
-	   同时，对于下面要进行的管道对接操作其实不该在这里实现的，在设计哲学上说不通
-       而应该是在“使用package river-node”里进行相关的操作
-       
+    /** 拿到对象类后，内部字段很多都是空的，所以需要进行初始化       
 	 * 下面只是简单的演示一下
      */
+
 /*----------在实战中，每一个zconn会分别包含一个heartbreat，
             一个crc，一个stamps，于是当zconn被销毁时，也就需要先销毁他们三个
             */
@@ -112,7 +75,7 @@ import (
  
     nodeHeartBeating.Run()
 //----------
-    stampsConfig       := &stamps.StampsConfig{
+    stampsConfig := &stamps.StampsConfig{
         UniqueId:   "testPkg",
 	
         /** 分为三种，HEAD、TAIL、HEADANDTAIL
@@ -136,7 +99,7 @@ import (
  
     nodeStamps.Run()
 //-----------
-    crcConfig          := &crc.CRCConfig{
+    crcConfig := &crc.CRCConfig{
         UniqueId:   "testPkg",
 
 	    /** 有两种模式：define.READONLY和define.NEWCHAN
@@ -179,18 +142,15 @@ import (
                     fmt.Println(uniqueid, "-detail:", detail)
                 case HEARTBREATING_NORMAL:
                     fmt.Println(uniqueid, "-detail:", detail)
-                case HEARTBREATING_DROPCONN:
+                //case HEARTBREATING_TIMEOUT:
+                    //timeout为Errors
+                //case HEARTBREATING_RECOVERED:
+                    //似乎暂时不需要处理所谓的“恢复”，到是也可以用日志记录一下
+                case HEARTBREATING_PREPAREDESTORY:
                     fmt.Println(uniqueid, "-detail:", detail)
-                    fmt.Println("心跳包连续多(5)次超时无响应，因此断开当前客户端连接")
-                // case HEARTBREATING_TIMEOUT://这是一个错误，需要在hb包内解决问题，而不是在这里
-                //     fmt.Println(uniqueid, "-detail:", detail,
-                //                  "一旦识别出此信号，那么就说明发出这信号的心跳包已经自我销毁了"+
-                //                  "接下来会对该心跳包所属链接进行必要的析构操作(如从总连接map中剔除),"+
-                //                  "最后会等待该客户端再次发出的握手请求事件，"+
-                //                  "当前进行的是重启原心跳包的监听工作，但是实际场景中不会这么做，"+
-                //                  "说个额外的内容，心跳包适配器的生命周期是整个软件的主函数")
-                //     heartBeatingAbs.Run()
-    
+                    //detail中或许会包含的内容是“"心跳包连续多(5)次超时无响应，因此断开当前客户端连接"”
+                    fmt.Println("可以从信号中获取被剔除ZConn的uid，从而基于uid进行后续的收尾工作")
+                
                 case CRC_RUN:
                     fmt.Println("CRC校验适配器被激活")
                 case CRC_NORMAL:
@@ -199,10 +159,8 @@ import (
                     fmt.Println("CRC校验检测出某字节组的校验码大小端反了")
                 case CRC_REVERSEENDIAN:
                     fmt.Println("CRC校验适配器已自动将大小端进行了翻转")
-                case CRC_DROPCONN:
-                    fmt.Println("CRC校验连续多(20)次出错，因此断开当前客户端连接")
-                // case CRC_NOTPASS://这是一个错误，需要在crc包内解决问题，而不是在这里
-                //     fmt.Println("signal:", "CRC_NOTPASS")
+                case CRC_DROPZCONN:
+                    fmt.Println("可以从信号中获取被剔除ZConn的uid，从而基于uid进行后续的收尾工作")
                 case STAMPS_RUN:
                     fmt.Println("STAMPS适配器被激活")
 
@@ -229,20 +187,7 @@ import (
         }
     }()
  
- 
-	/*为完成测试，如下携程实现的是向最初管道注入数据源*/
 
-    /** 这个管道不属于整体系统的一部分，只是为了产生数据
-    
-	 * 真正系统的规则如下：
-	   所有属于系统的管道会在主函数的开端统一进行make操作
-	   在任何一个数据处理节点代码块中(go func(){for range{}}结构)
-	   defer后跟随的是被处理的数据管道
-	   range后跟随的是处理后诞生的新管道
-	   所联合使用的适配器包，如heartbeating内是不会存在数据处理节点的
-	   即使存在go func(){for range{}}结构，他也不属于整体数据流动设计模式的一部分
-	   而仅仅是为适配器包自身实现某种功能所写出的代码逻辑
-	 */
     go func(){
         defer close(testBytesSenderCh)
         for i := 1;i < 20;i++{
@@ -257,16 +202,7 @@ import (
         }
     }()
  
- 
-	/** 之后，如下携程在当前测试中只会实现针对心跳包适配器管道的数据注入操作操作
-	  
-	 * 注意，实际应用时这个线程内部不会实现整个程序所有所需适配器管道的数据注入操作
-	   而是只实现for range所指向目标管道将会分流出管道的数据注入操作
-	 
-	 * 注意，这里是一个“数据处理节点”，后面会有更详细的说明
-	 
-	 * 此线程的作用是信号的处理
-	 */
+
     go func(){
         defer close(hbRaws)
         defer close(stampsRaws)

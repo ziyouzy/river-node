@@ -7,7 +7,7 @@
 package river_node
 
 import(
-	"fmt"
+//	"fmt"
 )
 
 const (
@@ -22,68 +22,90 @@ const (
 	HEARTBREATING_RUN = iota
 	HEARTBREATING_REBUILD
 	HEARTBREATING_NORMAL 
-	HEARTBREATING_TIMEOUT //ERROR
-	HEARTBREATING_DROPCONN
+	HEARTBREATING_TIMEOUT //一般为ERROR
+	HEARTBREATING_TIMERLIMITED //一般为ERROR
+	HEARTBREATING_RECOVERED
+	HEARTBREATING_PREPAREDESTORY
 	CRC_RUN
 	CRC_NORMAL
-	CRC_UPSIDEDOWN
-	CRC_REVERSEENDIAN
-	CRC_NOTPASS //ERROR
-	CRC_DROPCONN
+	CRC_UPSIDEDOWN //一般为SIGNAL
+	CRC_NOTPASS //一般为ERROR
+	CRC_RECOVERED
+	CRC_PREPAREDESTORY
 	STAMPS_RUN
 )
 
 
-func NewSignal(code int, uniqueid string) Signal{
+func NewSignal(code int, uniqueid string, commit string) Signal{
+	if uniqueid ==""&&code ==0 {
+		//fmt.error
+		return nil
+	}
+
 	s :=&signal{
-		UniqueId: 		uniqueid
-			Code: 		code
+		UniqueId: 		uniqueid,
+			Code: 		code,
+		  Commit:		commit,
 	}
 	return s
 }
 
 type Signal interface{
-	Description()(string, int, string)
+	Description()(string, int, string, string)
 }
+
+
 
 type signal struct{
 	UniqueId string
 	Code int
+	Commit string
 }
 
 
-func (p *signal)Description()(uniqueid string, code int, str string){
-	if p.UniqueId =="" { return }
-
-	uniqueid = p.UniqueId;    code = p.Code
+func (p *signal)Description()(uniqueid string, code int, conststring string, commit string){
+	uniqueid = p.UniqueId;	code = p.Code;	commit =p.Commit
 
 	switch code{
-	case HEARTBREATING_INIT:
-		str ="HEARTBREATING_INIT" 
+	case HEARTBREATING_RUN:
+		conststring ="HEARTBREATING_RUN" 
 	case HEARTBREATING_REBUILD:
-		str ="HEARTBREATING_REBUILD"
+		conststring ="HEARTBREATING_REBUILD"
 	case HEARTBREATING_NORMAL:
-		str ="HEARTBREATING_NORMAL"
+		conststring ="HEARTBREATING_NORMAL"
+	case HEARTBREATING_RECOVERED:
+		conststring ="HEARTBREATING_RECOVERED"
 	case HEARTBREATING_TIMEOUT:
-		str ="HEARTBREATING_TIMEOUT"
-	case CRC_INIT:
-		str ="CRC_INIT"
+		conststring ="HEARTBREATING_TIMEOUT"
+	case HEARTBREATING_TIMERLIMITED:
+		conststring ="HEARTBREATING_TIMERLIMITED"
+	case HEARTBREATING_PREPAREDESTORY:
+		conststring ="HEARTBREATING_PREPAREDESTORYED"
+
+	case CRC_RUN:
+		conststring ="CRC_RUN"
 	case CRC_NORMAL:
-		str ="CRC_NORMAL"
+		conststring ="CRC_NORMAL"
 	case CRC_UPSIDEDOWN:
-		str ="CRC_UPSIDEDOWN"
+		conststring ="CRC_UPSIDEDOWN"
 	case CRC_NOTPASS:
-		str ="CRC_NOTPASS"
-	case STAMPS_INIT:
-		str ="STAMPS_INIT"
+		conststring ="CRC_NOTPASS"
+	case CRC_RECOVERED:
+		conststring ="CRC_RECOVERED"
+	case CRC_PREPAREDESTORY:
+		conststring ="CRC_PREPAREDESTORY"
+
+	case STAMPS_RUN:
+		conststring ="STAMPS_RUN"
+
 	case ANOTHEREXAMPLE_TEST1:
-		str ="ANOTHEREXAMPLE_TEST1"
+		conststring ="ANOTHEREXAMPLE_TEST1"
 	case ANOTHEREXAMPLE_TEST2:
-		str ="ANOTHEREXAMPLE_TEST2"
+		conststring ="ANOTHEREXAMPLE_TEST2"
 	case ANOTHEREXAMPLE_TEST3:
-		str ="ANOTHEREXAMPLE_TEST3"
+		conststring ="ANOTHEREXAMPLE_TEST3"
 	case ANOTHEREXAMPLE_ERR:
-		str ="ANOTHEREXAMPLE_ERR"
+		conststring ="ANOTHEREXAMPLE_ERR"
 	}
 
 	return 
