@@ -181,7 +181,7 @@ func (p *CRC)Run(){
 
 
 
-func NewCRC() river_node.RNodeAbstract {
+func NewCRC() river_node.NodeAbstract {
 	return &CRC{}
 }
 

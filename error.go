@@ -11,9 +11,9 @@ func NewError(code int, uniqueid string, commit string)error{
 	}
 	
 	e :=&signal{
-		UniqueId: 		uniqueid,
-			Code: 		code,
-		  Commit:		commit,
+		UniqueId: 	uniqueid,
+		Code: 		code,
+		Commit:		commit,
 	}
 	return e	
 }

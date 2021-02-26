@@ -34,10 +34,7 @@ type HeartBeatingConfig struct{
 	TimeoutLimit    int
 	Raws 			chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
 		 
-
-
-		//News 此包不会生成新的管道数据
-
+	//News 此包不会生成新的管道数据
 }
 
 func (p *HeartBeatingConfig)Name()string{
@@ -45,7 +42,7 @@ func (p *HeartBeatingConfig)Name()string{
 }
 
 
-/** rnode节点自身所包含的字段要么是config，
+/** node节点自身所包含的字段要么是config，
  * 要么是一些golang如time.Timer的内置字段
  * 后期也可能会遇到装配一些第三方包内工具对象的时候
  */
@@ -74,9 +71,14 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs river_node.Config) error{
 		                  "timeout or uniqueId or timeoutlimit is nil")
 	}
 
-	if c.Signals == nil || c.Raws == nil || c.Errors == nil{
+	if c.Signals == nil || c.Errors == nil{
 		return errors.New("heartbeating river-node init error, "+
 						  "Raws or Signals or Errors is nil")
+	}
+
+	//可以不传入外层Raws的指针，因为心跳包目前看来只用来检测“频率”
+	if c.Raws == nil{
+		c.Raws = make(chan struct{})
 	}
 	
 	
@@ -111,9 +113,9 @@ func (p *HeartBeating)Run(){
 
 	p.config.Signals <- signal_run
 	if p.timer ==nil{		  
-		p.timer = time.NewTimer(p.config.Timeout)
+		p.timer = time.NewTimer(p.config.TimeoutSec)
 	}else{
-		p.timer.Reset(p.config.Timeout)
+		p.timer.Reset(p.config.TimeoutSec)
 		p.config.Signals <- signal_rebuild
 	}
 
@@ -133,7 +135,7 @@ func (p *HeartBeating)Run(){
 				}
 
 				if count < p.config.TimeoutLimit{
-					p.timer.Reset(p.config.Timeout)
+					p.timer.Reset(p.config.TimeoutSec)
 					count++
 					err := river_node.NewError(river_node.HEARTBREATING_TIMEOUT,p.config.UniqueId, 
 						fmt.Sprintf("连续第%d次超时，当前系统设定的"+
@@ -169,7 +171,7 @@ func (p *HeartBeating)Run(){
 					p.config.Signals <- signal
 				}
 
-				p.timer.Reset(p.config.Timeout)
+				p.timer.Reset(p.config.TimeoutSec)
 				p.config.Signals <- signal_normal
 			}
 		}
@@ -178,7 +180,7 @@ func (p *HeartBeating)Run(){
 
 
 
-func NewHeartbBreating() river_node.RNodeAbstract {
+func NewHeartbBreating() river_node.NodeAbstract {
 	return &HeartBeating{}
 }
 

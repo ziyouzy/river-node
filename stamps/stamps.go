@@ -5,6 +5,7 @@ import (
 	//"river-node/define"	/*暂时没有需要返回给上层的signal内容*/
 	"river-node/logger"
 	
+	"fmt"
 	"bytes"
 	"reflect"
 	"errors"
@@ -12,25 +13,22 @@ import (
 
 const RIVER_NODE_NAME = "stamps"
 
-var signal_run river_node.Signal
-
 type StampsConfig struct{
-	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
-	 Signals 		chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
-	  Errors 		chan error
+	UniqueId 	string	/*其所属上层Conn的唯一识别标识*/
+	Signals 	chan river_node.Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Errors 		chan error
 	/** 分为三种，HEAD、TAIL、HEADANDTAIL
 	 * 当是HEADANDTAIL模式，切len(stamp)>1时
 	 * 按照如下顺序拼接：
 	 * stamp1+raw(首部);raw+stamp2(尾部);stamp3+raw(首部);raw+stamp4(尾部);stamp5+raw(首部);....
 	 * 这样的首尾交替规律的拼接方式
 	 */
-		Mode 		int 
-	Breaking 		[]byte /*戳与数据间的分隔符，可以为nil*/
-	  Stamps 		[][]byte /*允许输入多个，会按顺序依次拼接*/
-		Raws 		chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Mode 		int 
+	Breaking 	[]byte /*戳与数据间的分隔符，可以为nil*/
+	Stamps 		[][]byte /*允许输入多个，会按顺序依次拼接*/
+	Raws 		chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-
-	    News 		chan []byte /*校验通过切去掉校验码的新切片*/
+	News 		chan []byte /*校验通过切去掉校验码的新切片*/
 }
 
 func (p *StampsConfig)Name()string{
@@ -40,9 +38,9 @@ func (p *StampsConfig)Name()string{
 
 
 type Stamps struct{
-	bytesHandler		*bytes.Buffer
-	 tailHandler		*bytes.Buffer
-	      config 		*StampsConfig
+	bytesHandler	*bytes.Buffer
+	tailHandler		*bytes.Buffer
+	config 			*StampsConfig
 }
 
 func (p *Stamps)Name()string{
@@ -63,24 +61,27 @@ func (p *Stamps)Init(stampsConfigAbs river_node.Config) error{
 		return errors.New("stamps river-node init error, breaking or stamps is nil")
 	}
 
-
-	if c.Signals == nil || cs.Errors ==nil{
+	if c.Signals == nil || c.Errors ==nil{
 		return errors.New("stamps river-node init error, Signals or Errors is nil")
 	}
 
-	if c.Raws == nil || cs.News ==nil{
+	if c.Raws == nil || c.News ==nil{
 		return errors.New("stamps river-node init error, Raws or News is nil")
 	}
+
+	if c.Mode != HEADANDTAIL && c.Mode != HEAD && c.Mode != TAIL{
+		return errors.New("stamps river-node init error, unknown mode")
+	}
 	
-	
+	if c.Mode == HEADANDTAIL && len(c.Stamps)<2{
+		return errors.New("stamps river-node init error, mode is headandtail but only one stamp")
+	}
+
 	p.config = c
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
 	if(p.config.Mode == HEADANDTAIL) { p.tailHandler = bytes.NewBuffer([]byte{}) } 
-
-	
-	signal_run = river_node.NewSignal(river_node.STAMPS_RUN, p.UniqueId)
 
 	return nil
 }
@@ -90,8 +91,26 @@ func (p *Stamps)Init(stampsConfigAbs river_node.Config) error{
  * 这些问题都要在Init()函数内实现纠错与警告
  * Run()的一切问题都通过signal的方式传递至管道
  */
+
+var (
+	signal_run river_node.Signal
+	modeStr string
+)
+
 func (p *Stamps)Run(){
-	p.Config.Signals <- signal_run
+	if p.config.Mode == HEAD{
+		modeStr ="将某个或某些印章戳添加于数据头部"
+	}else if p.config.Mode == TAIL{
+		modeStr ="将某个或某些印章戳添加于数据尾部"
+	}else if p.config.Mode == HEADANDTAIL{
+		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
+	}
+	
+	signal_run = river_node.NewSignal(river_node.STAMPS_RUN, p.config.UniqueId, 
+				 fmt.Sprintf("stamps适配器开始运行，其UniqueId为%s,Mode为%s。",
+							 p.config.UniqueId, modeStr))
+
+	p.config.Signals <- signal_run
 
 	switch p.config.Mode{
 	case HEAD:
@@ -102,13 +121,13 @@ func (p *Stamps)Run(){
 		}()
 	case TAIL:
 		go func(){
-			for raw := range p.config.RawinChan{
+			for raw := range p.config.Raws{
 				p.stampToTail(raw)
 			}
 		}()
 	case HEADANDTAIL:
 		go func(){
-			for raw := range p.config.RawinChan{
+			for raw := range p.config.Raws{
 				p.stampToHeadAndTail(raw)
 			}
 		}()
@@ -117,10 +136,6 @@ func (p *Stamps)Run(){
 
 
 
-/** 由于通信管道的存在似乎就无法为其设计初始化默认值的操作了
- * 但这个函数也是必须的，因为上层一定会遍历各个map
- * 从而识别并确认都有哪些已经注册并在册的预编译适配器
- */
 
 func NewStamps() river_node.NodeAbstract {
 	return &Stamps{}
@@ -131,7 +146,6 @@ func init() {
 	river_node.Register(RIVER_NODE_NAME, NewStamps)
 	logger.Info("预加载完成，印章适配器已预加载至package river_node.Nodes结构内")
 }
-
 
 
 

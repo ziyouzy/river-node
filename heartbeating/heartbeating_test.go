@@ -10,5 +10,5 @@ import (
 
 
 func TestHeartBreating(t *testing.T) {
-	fmt.Println(river_node.RNodes)
+	fmt.Println(river_node.Nodes)
 }

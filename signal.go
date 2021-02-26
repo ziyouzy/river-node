@@ -33,6 +33,7 @@ const (
 	CRC_RECOVERED
 	CRC_PREPAREDESTORY
 	STAMPS_RUN
+	TESTDATACREATER_RUN
 )
 
 
@@ -43,9 +44,9 @@ func NewSignal(code int, uniqueid string, commit string) Signal{
 	}
 
 	s :=&signal{
-		UniqueId: 		uniqueid,
-			Code: 		code,
-		  Commit:		commit,
+		UniqueId: 	uniqueid,
+		Code: 		code,
+		Commit:		commit,
 	}
 	return s
 }
@@ -58,8 +59,8 @@ type Signal interface{
 
 type signal struct{
 	UniqueId string
-	Code int
-	Commit string
+	Code 	 int
+	Commit 	 string
 }
 
 
@@ -67,6 +68,8 @@ func (p *signal)Description()(uniqueid string, code int, conststring string, com
 	uniqueid = p.UniqueId;	code = p.Code;	commit =p.Commit
 
 	switch code{
+	case TESTDATACREATER_RUN:
+		conststring ="TESTDATACREATER_RUN"
 	case HEARTBREATING_RUN:
 		conststring ="HEARTBREATING_RUN" 
 	case HEARTBREATING_REBUILD:

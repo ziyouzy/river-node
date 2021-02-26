@@ -1,4 +1,4 @@
-package crc
+package testdatacreater
 
 import (
 	"fmt"
@@ -9,6 +9,6 @@ import (
 )
 
 
-func TestCRC(t *testing.T) {
+func TestTestDataCreater(t *testing.T) {
 	fmt.Println(river_node.Nodes)
 }
