@@ -39,6 +39,11 @@ type NodeAbstract interface {
 	Run()
 }
 
+
+/** 这里使用了继承
+ * 这样一来就可以把RiverNode作为一个切片储存了，同时他还能具有map的键值对特性
+ * 这其实是一种设计模式
+ */
 type RiverNode struct{
 	Name  string
 	NodeAbstract
