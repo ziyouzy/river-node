@@ -19,19 +19,7 @@ package river_node
 
 
 
-var Nodes = make(map[string]NodeAbstractFunc)
-
-
-type NodeAbstractFunc func() NodeAbstract
-
-
-type NodeAbstract interface {
-	Name() string
-	Init(config Config) error
-	Run()
-}
-
-
+var RegisteredNodes = make(map[string]NodeAbstractFunc)
 func Register(Name string, F NodeAbstractFunc) {
 	if Nodes[Name] != nil {
 		panic("river-node: " + Name + " already registered!")
@@ -44,3 +32,14 @@ func Register(Name string, F NodeAbstractFunc) {
 	Nodes[Name] = F
 } 
 
+type NodeAbstractFunc func() NodeAbstract
+type NodeAbstract interface {
+	Name() string
+	Init(config Config) error
+	Run()
+}
+
+type RiverNode struct{
+	Name  string
+	NodeAbstract
+}
