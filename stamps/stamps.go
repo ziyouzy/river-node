@@ -14,21 +14,22 @@ import (
 const RIVER_NODE_NAME = "stamps"
 
 type StampsConfig struct{
-	UniqueId 	string	/*其所属上层Conn的唯一识别标识*/
-	Signals 	chan river_node.Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
-	Errors 		chan error
+	UniqueId 	    string	/*其所属上层Conn的唯一识别标识*/
+	Signals 	    chan river_node.Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Errors 		    chan error
 	/** 分为三种，HEAD、TAIL、HEADANDTAIL
 	 * 当是HEADANDTAIL模式，切len(stamp)>1时
 	 * 按照如下顺序拼接：
 	 * stamp1+raw(首部);raw+stamp2(尾部);stamp3+raw(首部);raw+stamp4(尾部);stamp5+raw(首部);....
 	 * 这样的首尾交替规律的拼接方式
 	 */
-	Mode 		int 
-	Breaking 	[]byte /*戳与数据间的分隔符，可以为nil*/
-	Stamps 		[][]byte /*允许输入多个，会按顺序依次拼接*/
-	Raws 		chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Mode 		    int 
+	AutoTimeStamp	bool
+	Breaking 	    []byte /*戳与数据间的分隔符，可以为nil*/
+	Stamps 		    [][]byte /*允许输入多个，会按顺序依次拼接*/
+	Raws 		    chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-	News 		chan []byte /*校验通过切去掉校验码的新切片*/
+	News 		    chan []byte /*校验通过切去掉校验码的新切片*/
 }
 
 func (p *StampsConfig)Name()string{
@@ -95,9 +96,16 @@ func (p *Stamps)Init(stampsConfigAbs river_node.Config) error{
 var (
 	signal_run river_node.Signal
 	modeStr string
+	timeStampStr string
 )
 
 func (p *Stamps)Run(){
+	if p.config.AutoTimeStamp{
+		timeStampStr = "不会首先自动添加时间戳"
+	}else{
+		timeStampStr = "会首先自动添加时间戳"
+	}
+
 	if p.config.Mode == HEAD{
 		modeStr ="将某个或某些印章戳添加于数据头部"
 	}else if p.config.Mode == TAIL{
@@ -107,8 +115,8 @@ func (p *Stamps)Run(){
 	}
 	
 	signal_run = river_node.NewSignal(river_node.STAMPS_RUN, p.config.UniqueId, 
-				 fmt.Sprintf("stamps适配器开始运行，其UniqueId为%s,Mode为%s。",
-							 p.config.UniqueId, modeStr))
+				 fmt.Sprintf("stamps适配器开始运行，其UniqueId为%s,Mode为%s并且%s。",
+							 p.config.UniqueId, modeStr,timeStampStr))
 
 	p.config.Signals <- signal_run
 
@@ -155,7 +163,11 @@ func init() {
 
 func (p *Stamps)stampToHead(raw []byte){
 	p.bytesHandler.Reset()
-	for _, stamp :=range p.config.Stamps{
+	for index, stamp :=range p.config.Stamps{
+		if index ==0&&p.config.AutoTimeStamp{
+			p.bytesHandler.Write(NanoTimeStamp())
+			p.bytesHandler.Write(p.config.Breaking)
+		}
 		p.bytesHandler.Write(stamp)
 		p.bytesHandler.Write(p.config.Breaking)
 	}
@@ -170,7 +182,11 @@ func (p *Stamps)stampToTail(raw []byte){
 
 	p.bytesHandler.Write(raw)
 
-	for _, stamp :=range p.config.Stamps{
+	for index, stamp :=range p.config.Stamps{
+		if index ==0&&p.config.AutoTimeStamp{
+			p.bytesHandler.Write(NanoTimeStamp())
+			p.bytesHandler.Write(p.config.Breaking)
+		}
 		p.bytesHandler.Write(p.config.Breaking)
 		p.bytesHandler.Write(stamp)
 	}
@@ -182,7 +198,12 @@ func (p *Stamps)stampToHeadAndTail(raw []byte){
 
 	p.bytesHandler.Reset();    ishead :=true;    p.tailHandler.Reset()
 
-	for _, stamp :=range p.config.Stamps{
+	for index, stamp :=range p.config.Stamps{
+		if index ==0&&p.config.AutoTimeStamp{
+			p.bytesHandler.Write(NanoTimeStamp())
+			p.bytesHandler.Write(p.config.Breaking)
+		}
+
 		if ishead{
 			p.bytesHandler.Write(stamp)
 			p.bytesHandler.Write(p.config.Breaking)				
@@ -198,4 +219,6 @@ func (p *Stamps)stampToHeadAndTail(raw []byte){
 
 	p.config.News <-p.bytesHandler.Bytes()
 }
+
+
 
