@@ -5,9 +5,10 @@
 package river_node
 
 import (
+	"github.com/ziyouzy/logger"
+
 	"river_node/heartbeating"
 	"river_node/define"
-	"river_node/logger"
 
 	"fmt"
 	"time"
@@ -15,12 +16,7 @@ import (
 )
 
 func TestNode(t *testing.T) {
-	logger.NewLogger()
-	defer logger.Flush()
-
-	logger.Info("test Log Info")
-
-
+	defer logger.Destory()
 	/*此管道的作用是测试信号的生成*/
 	testBytesSenderCH := make(chan []byte)
 	/*主线程中signal的统一管理管道*/
@@ -55,7 +51,7 @@ func TestNode(t *testing.T) {
 	 *  于是引入顺序偶尔也变得比较重要，比如当前的情况：
 	    "river-node/heartbeating"
 	    "river-node/define"
-	    "river-node/logger"
+	    "github.com/ziyouzy/logger"
 	    由于logger是被所有功能包都会调用的工具包，所以必须确保其先完成初始化
 	    不会这里也不是必须在最下方，因为最下方的只是最先被塞进内存，或者说完成预加载
 	    真正的初始化则是当前测试函数的第一句

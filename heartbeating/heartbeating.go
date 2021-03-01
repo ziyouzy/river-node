@@ -8,7 +8,7 @@ package heartbeating
 
 import (
 	"river-node"
-	"river-node/logger"
+	"github.com/ziyouzy/logger"
 
 	"fmt"
 	"time"

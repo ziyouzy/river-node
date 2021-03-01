@@ -3,7 +3,7 @@ package crc
 import (
 	"river-node"
 	//"river-node/define"
-	"river-node/logger"
+	"github.com/ziyouzy/logger"
 
 	"fmt"
 	"bytes"

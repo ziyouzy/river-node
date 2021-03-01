@@ -6,7 +6,7 @@ import (
     "river-node/stamps"
     "river-node/crc"
     "river-node"
-    "river-node/logger"
+    "github.com/ziyouzy/logger"
     
  
     "fmt"
@@ -17,7 +17,7 @@ import (
  
 
 func TestNodes(t *testing.T) {
-    defer logger.Flush()
+    defer logger.Destory()
 //-----------
     Recriver()
 //--------------------

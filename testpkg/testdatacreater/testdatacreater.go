@@ -5,7 +5,7 @@ package testdatacreater
 
 import (
 	"river-node"
-	"river-node/logger"
+	"github.com/ziyouzy/logger"
 	
 	//"fmt"
 	"time"

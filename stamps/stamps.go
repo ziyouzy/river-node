@@ -3,7 +3,7 @@ package stamps
 import (
 	"river-node"
 	//"river-node/define"	/*暂时没有需要返回给上层的signal内容*/
-	"river-node/logger"
+	"github.com/ziyouzy/logger"
 	
 	"fmt"
 	"bytes"
