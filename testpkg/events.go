@@ -39,7 +39,7 @@ func Recriver(){
                 //case river_node.HEARTBREATING_TIMERLIMITED:
                 //case river_node.HEARTBREATING_RECOVERED:
                     //似乎暂时不需要处理所谓的“恢复”，到是也可以用日志记录一下
-                case river_node.HEARTBREATING_PREPAREDESTORY:
+                case river_node.HEARTBREATING_PANIC:
                     fmt.Println(uniqueid, "-detail:", detail)
                     //detail中或许会包含的内容是“"心跳包连续多(5)次超时无响应，因此断开当前客户端连接"”
                     fmt.Println("可以从信号中获取被剔除的uid，从而基于uid进行后续的收尾工作")
@@ -52,7 +52,7 @@ func Recriver(){
                     fmt.Println("CRC校验检测出某字节组的校验码大小端反了")
                 //case river_node.CRC_NOTPASS:
                 //case river_node.CRC_RECOVERED:
-                case river_node.CRC_PREPAREDESTORY:
+                case river_node.CRC_PANIC:
                     fmt.Println("可以从信号中获取被剔除ZConn的uid，从而基于uid进行后续的收尾工作")
                 
                 case river_node.STAMPS_RUN:

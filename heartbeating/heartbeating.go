@@ -18,7 +18,7 @@ import (
 
 const RIVER_NODE_NAME = "heartbeating"
 
-var signal_rebuild,signal_normal,signal_prepareDestory river_node.Signal 
+var signal_rebuild,signal_normal,signal_panic river_node.Signal 
 
 type HeartBeatingConfig struct{
 	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
@@ -58,7 +58,7 @@ func (p *HeartBeating)Name()string{
 func (p *HeartBeating)Init(heartBeatingConfigAbs river_node.Config) error{
 	if heartBeatingConfigAbs.Name() != RIVER_NODE_NAME {
 		return errors.New("heartbeating river-node init error, "+ 
-		                  "config must HeartBreatingConfig")
+		             "config must HeartBreatingConfig")
 	}
 
 
@@ -68,12 +68,12 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs river_node.Config) error{
 
 	if c.TimeoutSec == (0 * time.Second) || c.UniqueId == "" || c.TimeoutLimit ==0{
 		return errors.New("heartbeating river-node init error, "+
-		                  "timeout or uniqueId or timeoutlimit is nil")
+		             "timeout or uniqueId or timeoutlimit is nil")
 	}
 
 	if c.Signals == nil || c.Errors == nil{
 		return errors.New("heartbeating river-node init error, "+
-						  "Raws or Signals or Errors is nil")
+					 "Raws or Signals or Errors is nil")
 	}
 
 	//可以不传入外层Raws的指针，因为心跳包目前看来只用来检测“频率”
@@ -86,8 +86,7 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs river_node.Config) error{
 
 	signal_rebuild = river_node.NewSignal(river_node.HEARTBREATING_REBUILD,c.UniqueId, "")
 	signal_normal  = river_node.NewSignal(river_node.HEARTBREATING_NORMAL,c.UniqueId, "")
-	signal_prepareDestory = river_node.NewSignal(river_node.HEARTBREATING_PREPAREDESTORY,
-							c.UniqueId, "")
+	signal_panic = river_node.NewSignal(river_node.HEARTBREATING_PANIC,c.UniqueId, "")
 	
 	return nil
 }
@@ -108,8 +107,8 @@ var (
 func (p *HeartBeating)Run(){
 	signal_run = river_node.NewSignal(river_node.HEARTBREATING_RUN,p.config.UniqueId,
 				 fmt.Sprintf("heartbeating适配器开始运行，其UniqueId为%s, 最大超时秒数为%d, "+
-				             "最大超时次数为%d, 该适配器无诸如“Mode”相关的配置参数。",
-							 p.config.UniqueId, p.config.TimeoutSec, p.config.TimeoutLimit))
+				    "最大超时次数为%d, 该适配器无诸如“Mode”相关的配置参数。",
+					p.config.UniqueId, p.config.TimeoutSec, p.config.TimeoutLimit))
 
 	p.config.Signals <- signal_run
 	if p.timer ==nil{		  
@@ -128,26 +127,25 @@ func (p *HeartBeating)Run(){
 				/*必须先检查一下Raws内部是否还存在数据*/				
 				if len(p.config.Raws)>0{
 					_ = <-p.config.Raws
-					err := river_node.NewError(river_node.HEARTBREATING_TIMERLIMITED,p.config.UniqueId,
-						fmt.Sprintf("heartbeating适配器发生了“计时器超时下的数据临界事件“,"+
-									"Raws管道已正常排空，uid为%s",p.config.UniqueId)) 
-					p.config.Errors <- err
+					p.config.Errors <-river_node.NewError(river_node.HEARTBREATING_TIMERLIMITED,p.config.UniqueId,
+						fmt.Sprintf("heartbeating适配器发生了“计时器超时下的数据临界事件“,Raws管道已"+
+						   "正常排空，uid为%s",p.config.UniqueId)) 
 				}
 
 				if count < p.config.TimeoutLimit{
 					p.timer.Reset(p.config.TimeoutSec)
 					count++
-					err := river_node.NewError(river_node.HEARTBREATING_TIMEOUT,p.config.UniqueId, 
-						fmt.Sprintf("连续第%d次超时，当前系统设定的"+
-									"最大超时次数为%d",count,p.config.TimeoutLimit))
-					p.config.Errors <- err
+					p.config.Errors <-river_node.NewError(river_node.HEARTBREATING_TIMEOUT,
+												p.config.UniqueId,fmt.Sprintf("连续第%d次超时，"+
+												"当前系统设定的最大超时次数为%d",
+												count,p.config.TimeoutLimit))
 				}else{
-					err := river_node.NewError(river_node.HEARTBREATING_PREPAREDESTORY,p.config.UniqueId, 
-						fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，系统设定的"+
-									"最大超时次数为%d",count,p.config.TimeoutLimit))
-					p.config.Errors <- err
+					p.config.Errors <-river_node.NewError(river_node.HEARTBREATING_PANIC,
+												p.config.UniqueId, fmt.Sprintf("连续第%d次超时"+
+												"已超过系统设定的最大超时次数，系统设定的最大超时次数为%d",
+												count,p.config.TimeoutLimit))
 					count =0
-					p.config.Signals <- signal_prepareDestory
+					p.config.Signals <- signal_panic
 					//进行析构，但是暂时先不进行
 					return
 				}
@@ -157,18 +155,18 @@ func (p *HeartBeating)Run(){
 				/*Reset一个timer前必须先正确的关闭它*/
 				if p.timer.Stop() == STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
-					err := river_node.NewError(river_node.HEARTBREATING_TIMERLIMITED,p.config.UniqueId,
-						fmt.Sprintf("heartbeating适配器发生了“计时器未超时下的数据临界事件”,"+
-					                "计时器自身的管道已正常排空，uid为%s",p.config.UniqueId)) 
-					p.config.Errors <- err
+					p.config.Errors <-river_node.NewError(river_node.HEARTBREATING_TIMERLIMITED,
+												p.config.UniqueId,fmt.Sprintf("heartbeating适配器"+
+												"发生了“计时器未超时下的数据临界事件”,计时器自身的管道"+
+												"已正常排空，uid为%s",p.config.UniqueId)) 
 				}
 				
 				if count != 0{
-					signal := river_node.NewSignal(river_node.HEARTBREATING_RECOVERED,p.config.UniqueId,
-						   fmt.Sprintf("已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
-										  count,p.config.TimeoutLimit))
 					count =0
-					p.config.Signals <- signal
+					p.config.Signals <-river_node.NewSignal(river_node.HEARTBREATING_RECOVERED,
+												 p.config.UniqueId, fmt.Sprintf("已从第%d次超时"+
+												 "中恢复，当前系统设定的最大超时次数为%d",
+												 count,p.config.TimeoutLimit))
 				}
 
 				p.timer.Reset(p.config.TimeoutSec)

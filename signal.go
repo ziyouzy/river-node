@@ -17,7 +17,8 @@ const (
 	ANOTHEREXAMPLE_ERR = 999996
 )
 
-
+//package river-node占用编号范围是0~199
+//已知目前usrio-808占用编码范围200~219
 const (
 	HEARTBREATING_RUN = iota
 	HEARTBREATING_REBUILD
@@ -25,13 +26,13 @@ const (
 	HEARTBREATING_TIMEOUT //一般为ERROR
 	HEARTBREATING_TIMERLIMITED //一般为ERROR
 	HEARTBREATING_RECOVERED
-	HEARTBREATING_PREPAREDESTORY
+	HEARTBREATING_PANIC
 	CRC_RUN
 	CRC_NORMAL
 	CRC_UPSIDEDOWN //一般为SIGNAL
 	CRC_NOTPASS //一般为ERROR
 	CRC_RECOVERED
-	CRC_PREPAREDESTORY
+	CRC_PANIC
 	STAMPS_RUN
 	TESTDATACREATER_RUN
 )
@@ -82,8 +83,8 @@ func (p *signal)Description()(uniqueid string, code int, conststring string, com
 		conststring ="HEARTBREATING_TIMEOUT"
 	case HEARTBREATING_TIMERLIMITED:
 		conststring ="HEARTBREATING_TIMERLIMITED"
-	case HEARTBREATING_PREPAREDESTORY:
-		conststring ="HEARTBREATING_PREPAREDESTORYED"
+	case HEARTBREATING_PANIC:
+		conststring ="HEARTBREATING_PANIC"
 
 	case CRC_RUN:
 		conststring ="CRC_RUN"
@@ -95,8 +96,8 @@ func (p *signal)Description()(uniqueid string, code int, conststring string, com
 		conststring ="CRC_NOTPASS"
 	case CRC_RECOVERED:
 		conststring ="CRC_RECOVERED"
-	case CRC_PREPAREDESTORY:
-		conststring ="CRC_PREPAREDESTORY"
+	case CRC_PANIC:
+		conststring ="CRC_PANIC"
 
 	case STAMPS_RUN:
 		conststring ="STAMPS_RUN"

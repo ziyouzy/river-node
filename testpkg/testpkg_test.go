@@ -24,7 +24,7 @@ func TestNodes(t *testing.T) {
     TestDataCreaterConnectCRC()
     CRCConnectStamps()
 //-----------
-    testDataCreaterAbsf   := river_node.Nodes[testdatacreater.RIVER_NODE_NAME]
+    testDataCreaterAbsf   := river_node.RegisteredNodes[testdatacreater.RIVER_NODE_NAME]
     testDataCreaterNode   := testDataCreaterAbsf()
     testDataCreaterConfig := &testdatacreater.TestDataCreaterConfig{
 
@@ -40,7 +40,7 @@ func TestNodes(t *testing.T) {
 
 
 //-----------
-   heartBeatingAbsf     := river_node.Nodes[heartbeating.RIVER_NODE_NAME]
+   heartBeatingAbsf     := river_node.RegisteredNodes[heartbeating.RIVER_NODE_NAME]
    heartBeatingNode     := heartBeatingAbsf()
    heartBeatingConfig   := &heartbeating.HeartBeatingConfig{
 
@@ -55,7 +55,7 @@ func TestNodes(t *testing.T) {
  
 
 //-----------
-   crcAbsf              := river_node.Nodes[crc.RIVER_NODE_NAME]
+   crcAbsf              := river_node.RegisteredNodes[crc.RIVER_NODE_NAME]
    crcNode              := crcAbsf()
    crcConfig            := &crc.CRCConfig{
 
@@ -74,7 +74,7 @@ func TestNodes(t *testing.T) {
 
 
 //----------
-   stampsAbsf           := river_node.Nodes[stamps.RIVER_NODE_NAME]
+   stampsAbsf           := river_node.RegisteredNodes[stamps.RIVER_NODE_NAME]
    stampsNode           := stampsAbsf()
    stampsNews            :=make(chan []byte)
    stampsConfig         := &stamps.StampsConfig{
