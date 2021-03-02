@@ -1,26 +1,23 @@
-package crc
+package river_node
 
 import (
-	"river-node"
-	//"river-node/define"
 	"github.com/ziyouzy/logger"
 
 	"fmt"
 	"bytes"
 	"reflect"
 	"errors"
-	//"bytes"
 	"encoding/binary"
 )
 
 
-const RIVER_NODE_NAME = "crc"
+const CRC_RIVERNODE_NAME = "crc"
 
-var signal_normal, signal_upsidedown, signal_panic river_node.Signal
+var crc_signal_normal, crc_signal_upsidedown, crc_signal_panic Signal
 
 type CRCConfig struct{
 	UniqueId 		  			string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
-	Signals 		  			chan river_node.Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Signals 		  			chan Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			  			chan error
 
 	Mode 			  			int /*define.READONLY或define.NEWCHAN*/
@@ -36,7 +33,7 @@ type CRCConfig struct{
 
 
 func (p *CRCConfig)Name()string{
-	return RIVER_NODE_NAME
+	return CRC_RIVERNODE_NAME
 }
 
 
@@ -48,11 +45,11 @@ type CRC struct{
 }
 
 func (p *CRC)Name()string{
-	return RIVER_NODE_NAME
+	return CRC_RIVERNODE_NAME
 }
 
-func (p *CRC)Init(CRCConfigAbs river_node.Config) error{
-	if CRCConfigAbs.Name() != RIVER_NODE_NAME {
+func (p *CRC)Init(CRCConfigAbs Config) error{
+	if CRCConfigAbs.Name() != CRC_RIVERNODE_NAME {
 		return errors.New("crc river_node init error, config must CRCConfig")
 	}
 
@@ -128,40 +125,40 @@ func (p *CRC)Init(CRCConfigAbs river_node.Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
-	signal_normal 	  = river_node.NewSignal(river_node.CRC_NORMAL, c.UniqueId, "") 
-	signal_upsidedown = river_node.NewSignal(river_node.CRC_UPSIDEDOWN, c.UniqueId, "")
-	signal_panic = river_node.NewSignal(river_node.CRC_PANIC,
+	crc_signal_normal 	  = NewSignal(CRC_NORMAL, c.UniqueId, "") 
+	crc_signal_upsidedown = NewSignal(CRC_UPSIDEDOWN, c.UniqueId, "")
+	crc_signal_panic = NewSignal(CRC_PANIC,
 							c.UniqueId, "")
 
 	return nil
 }
 
 var (
-	count int
-	endianStr string
-	modeStr string
-	signal_run river_node.Signal
+	crc_count int
+	crc_endianStr string
+	crc_modeStr string
+	crc_signal_run Signal
 )
 
 func (p *CRC)Run(){
 	if p.config.IsBigEndian{
-		endianStr ="大端模式"
+		crc_endianStr ="大端模式"
 	}else{
-		endianStr ="小端模式"
+		crc_endianStr ="小端模式"
 	}
 
 	if p.config.Mode == READONLY{
-		modeStr ="只判断是否校验通过，只将结果通过Signals管道返回给上层(READONLY)"
+		crc_modeStr ="只判断是否校验通过，只将结果通过Signals管道返回给上层(READONLY)"
 	}else if p.config.Mode == NEWCHAN{
-		modeStr ="不仅仅判断是否校验通过，并为通过与未通过校验的数据分别创建新的管道(NEWCHAN)"
+		crc_modeStr ="不仅仅判断是否校验通过，并为通过与未通过校验的数据分别创建新的管道(NEWCHAN)"
 	}
 	
-	signal_run = river_node.NewSignal(river_node.CRC_RUN,p.config.UniqueId,
+	crc_signal_run = NewSignal(CRC_RUN,p.config.UniqueId,
 		fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, "+
 					"Mode为:%s,大小端模式为:%s。",
-					p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
+					p.config.UniqueId, p.config.NotPassLimit, crc_modeStr, crc_endianStr))
 
-	p.config.Signals <- signal_run
+	p.config.Signals <- crc_signal_run
 
 	switch p.config.Mode{
 	case READONLY:
@@ -181,13 +178,13 @@ func (p *CRC)Run(){
 
 
 
-func NewCRC() river_node.NodeAbstract {
+func NewCRC() NodeAbstract {
 	return &CRC{}
 }
 
 
 func init() {
-	river_node.Register(RIVER_NODE_NAME, NewCRC)
+	Register(CRC_RIVERNODE_NAME, NewCRC)
 	logger.Info("预加载完成，CRC校验适配器已预加载至package river_node.RNodes结构内")
 }
 
@@ -205,34 +202,34 @@ func (p *CRC)readOnlyCheck(mb []byte){
 	raw,crc := p.midModbus(mb) 
 
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		if count != 0{ 
-			count = 0
-			p.config.Signals <-river_node.NewSignal(river_node.CRC_RECOVERED,p.config.UniqueId,
+		if crc_count != 0{ 
+			crc_count = 0
+			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
 										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
-										    "最大失败次数为%d",count,p.config.NotPassLimit))
+										    "最大失败次数为%d",crc_count,p.config.NotPassLimit))
 		}
-		p.config.Signals <- signal_normal
+		p.config.Signals <- crc_signal_normal
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		if count != 0{
-			count = 0
-			p.config.Signals <-river_node.NewSignal(river_node.CRC_RECOVERED,p.config.UniqueId,
+		if crc_count != 0{
+			crc_count = 0
+			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
 										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
 										    "最大失败次数为%d,但是当前这一字节数组存在大小端颠倒的问题",
-											count,p.config.NotPassLimit))
+											crc_count,p.config.NotPassLimit))
 		}
-		p.config.Signals <- signal_upsidedown
-	}else if count < p.config.NotPassLimit{
-		count++
-		p.config.Errors <-river_node.NewError(river_node.CRC_NOTPASS,p.config.UniqueId, 
+		p.config.Signals <- crc_signal_upsidedown
+	}else if crc_count < p.config.NotPassLimit{
+		crc_count++
+		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
 									fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的"+
-									   "最大连续失败次数为%d",count,p.config.NotPassLimit))
+									   "最大连续失败次数为%d",crc_count,p.config.NotPassLimit))
 	}else{
-		p.config.Errors <- river_node.NewError(river_node.CRC_PANIC,p.config.UniqueId, 
+		p.config.Errors <- NewError(CRC_PANIC,p.config.UniqueId, 
 									 fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的"+
 										"最大次数，系统设定的最大连续失败次数为%d",
-										count,p.config.NotPassLimit))
-		count =0
-		p.config.Signals <- signal_panic
+										crc_count,p.config.NotPassLimit))
+		crc_count =0
+		p.config.Signals <- crc_signal_panic
 		//暂不设计销毁逻辑
 	}
 }
@@ -242,54 +239,54 @@ func (p *CRC)newChanCheck(mb []byte){
 	raw,crc := p.midModbus(mb) 
 
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		if count != 0{
-			count = 0
-			p.config.Signals <-river_node.NewSignal(river_node.CRC_RECOVERED,p.config.UniqueId,
+		if crc_count != 0{
+			crc_count = 0
+			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
 										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
-										    "最大失败次数为%d",count,p.config.NotPassLimit))
+										    "最大失败次数为%d",crc_count,p.config.NotPassLimit))
 		}
 		
-		p.config.Signals <- signal_normal
+		p.config.Signals <- crc_signal_normal
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
 		p.config.PassNews <-p.bytesHandler.Bytes()
 
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		if count != 0{
-			count = 0
-			p.config.Signals <-river_node.NewSignal(river_node.CRC_RECOVERED,p.config.UniqueId,
+		if crc_count != 0{
+			crc_count = 0
+			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
 										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
 										    "最大失败次数为%d,但是当前这一字节数组存在大小端颠倒的问题",
-											count,p.config.NotPassLimit))
+											crc_count,p.config.NotPassLimit))
 		}
 
-		p.config.Signals <- signal_upsidedown
+		p.config.Signals <- crc_signal_upsidedown
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
 		p.config.PassNews <-p.bytesHandler.Bytes()
 
-	}else if count < p.config.NotPassLimit{
-		count++
-		p.config.Errors <-river_node.NewError(river_node.CRC_NOTPASS,p.config.UniqueId, 
+	}else if crc_count < p.config.NotPassLimit{
+		crc_count++
+		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
 									fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败"+
-									   "次数为%d",count,p.config.NotPassLimit))
+									   "次数为%d",crc_count,p.config.NotPassLimit))
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
 		p.config.NotPassNews <-p.bytesHandler.Bytes()
 	}else{
-		p.config.Errors <-river_node.NewError(river_node.CRC_PANIC,p.config.UniqueId, 
+		p.config.Errors <-NewError(CRC_PANIC,p.config.UniqueId, 
 									fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，"+
-									   "系统设定的最大连续失败次数为%d",count,p.config.NotPassLimit))
-		count =0
+									   "系统设定的最大连续失败次数为%d",crc_count,p.config.NotPassLimit))
+		crc_count =0
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(mb)
 		p.config.NotPassNews <- p.bytesHandler.Bytes()
 
-		p.config.Signals <- signal_panic
+		p.config.Signals <- crc_signal_panic
 		//暂不设计销毁逻辑
 	}
 }

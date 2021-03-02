@@ -1,4 +1,4 @@
-package stamps
+package river_node
 
 import (
 	"fmt"

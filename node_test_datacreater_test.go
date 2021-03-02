@@ -1,4 +1,4 @@
-package testdatacreater
+package river_node
 
 import (
 	"fmt"

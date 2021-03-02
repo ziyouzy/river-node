@@ -1,11 +1,8 @@
-package heartbeating
+package river_node
 
 import (
 	"fmt"
-	//"time"
 	"testing"	
-
-	"river-node"
 )
 
 

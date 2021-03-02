@@ -1,7 +1,6 @@
-package stamps
+package river_node
 
 import (
-	"river-node"
 	//"river-node/define"	/*暂时没有需要返回给上层的signal内容*/
 	"github.com/ziyouzy/logger"
 	
@@ -11,11 +10,11 @@ import (
 	"errors"
 )
 
-const RIVER_NODE_NAME = "stamps"
+const STAMPS_RIVERNODE_NAME = "stamps"
 
 type StampsConfig struct{
 	UniqueId 	    string	/*其所属上层Conn的唯一识别标识*/
-	Signals 	    chan river_node.Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Signals 	    chan Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 		    chan error
 	/** 分为三种，HEAD、TAIL、HEADANDTAIL
 	 * 当是HEADANDTAIL模式，切len(stamp)>1时
@@ -33,7 +32,7 @@ type StampsConfig struct{
 }
 
 func (p *StampsConfig)Name()string{
-	return RIVER_NODE_NAME
+	return STAMPS_RIVERNODE_NAME
 }
 
 
@@ -45,11 +44,11 @@ type Stamps struct{
 }
 
 func (p *Stamps)Name()string{
-	return RIVER_NODE_NAME
+	return STAMPS_RIVERNODE_NAME
 }
 
-func (p *Stamps)Init(stampsConfigAbs river_node.Config) error{
-	if stampsConfigAbs.Name() != RIVER_NODE_NAME {
+func (p *Stamps)Init(stampsConfigAbs Config) error{
+	if stampsConfigAbs.Name() != STAMPS_RIVERNODE_NAME {
 		return errors.New("stamps river-node init error, config must StampsConfig")
 	}
 
@@ -94,31 +93,31 @@ func (p *Stamps)Init(stampsConfigAbs river_node.Config) error{
  */
 
 var (
-	signal_run river_node.Signal
-	modeStr string
-	timeStampStr string
+	stamps_signal_run Signal
+	stamps_modeStr string
+	stamps_timeStampStr string
 )
 
 func (p *Stamps)Run(){
 	if p.config.AutoTimeStamp{
-		timeStampStr = "不会首先自动添加时间戳"
+		stamps_timeStampStr = "不会首先自动添加时间戳"
 	}else{
-		timeStampStr = "会首先自动添加时间戳"
+		stamps_timeStampStr = "会首先自动添加时间戳"
 	}
 
 	if p.config.Mode == HEAD{
-		modeStr ="将某个或某些印章戳添加于数据头部"
+		stamps_modeStr ="将某个或某些印章戳添加于数据头部"
 	}else if p.config.Mode == TAIL{
-		modeStr ="将某个或某些印章戳添加于数据尾部"
+		stamps_modeStr ="将某个或某些印章戳添加于数据尾部"
 	}else if p.config.Mode == HEADANDTAIL{
-		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
+		stamps_modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
 	}
 	
-	signal_run = river_node.NewSignal(river_node.STAMPS_RUN, p.config.UniqueId, 
+	stamps_signal_run = NewSignal(STAMPS_RUN, p.config.UniqueId, 
 				 fmt.Sprintf("stamps适配器开始运行，其UniqueId为%s,Mode为%s并且%s。",
-							 p.config.UniqueId, modeStr,timeStampStr))
+							 p.config.UniqueId, stamps_modeStr,stamps_timeStampStr))
 
-	p.config.Signals <- signal_run
+	p.config.Signals <- stamps_signal_run
 
 	switch p.config.Mode{
 	case HEAD:
@@ -145,13 +144,13 @@ func (p *Stamps)Run(){
 
 
 
-func NewStamps() river_node.NodeAbstract {
+func NewStamps() NodeAbstract {
 	return &Stamps{}
 }
 
 
 func init() {
-	river_node.Register(RIVER_NODE_NAME, NewStamps)
+	Register(STAMPS_RIVERNODE_NAME, NewStamps)
 	logger.Info("预加载完成，印章适配器已预加载至package river_node.Nodes结构内")
 }
 
