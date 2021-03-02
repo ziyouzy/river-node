@@ -1,4 +1,4 @@
-module github.com/ziyouzy/river_node
+module github.com/ziyouzy/river-node
 
 go 1.15
 
