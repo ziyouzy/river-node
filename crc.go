@@ -67,8 +67,7 @@ func (p *CRC)Init(CRCConfigAbs Config) error{
 	}
 
 	if c.Raws == nil || c.NotPassLimit ==0{
-		return errors.New("crc river_node init error, "+
-		                  "Raws or NotPassLimit is nil")
+		return errors.New("crc river_node init error, Raws or NotPassLimit is nil")
 	}
 
 	if c.Mode != NEWCHAN&&c.Mode != READONLY {
@@ -78,12 +77,12 @@ func (p *CRC)Init(CRCConfigAbs Config) error{
 
 	if c.Mode ==NEWCHAN && (c.PassNews == nil || c.NotPassNews == nil){
 		return errors.New("newchan mode crc river-node init error, "+
-		                  "PassNews or NotPassNews or  is nil") 
+		             "PassNews or NotPassNews or  is nil") 
 	}
 
 	if c.Mode ==READONLY && (c.PassNews != nil || c.NotPassNews != nil){
 		return errors.New("readonly mode crc river-node init error, "+
-		                  "PassNews or NotPassNews or  is not nil") 
+		             "PassNews or NotPassNews or  is not nil") 
 	}
 
 	
@@ -127,8 +126,7 @@ func (p *CRC)Init(CRCConfigAbs Config) error{
 
 	crc_signal_normal 	  = NewSignal(CRC_NORMAL, c.UniqueId, "") 
 	crc_signal_upsidedown = NewSignal(CRC_UPSIDEDOWN, c.UniqueId, "")
-	crc_signal_panic = NewSignal(CRC_PANIC,
-							c.UniqueId, "")
+	crc_signal_panic 	  = NewSignal(CRC_PANIC, c.UniqueId, "")
 
 	return nil
 }
@@ -154,9 +152,8 @@ func (p *CRC)Run(){
 	}
 	
 	crc_signal_run = NewSignal(CRC_RUN,p.config.UniqueId,
-		fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, "+
-					"Mode为:%s,大小端模式为:%s。",
-					p.config.UniqueId, p.config.NotPassLimit, crc_modeStr, crc_endianStr))
+		fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
+		   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, crc_modeStr, crc_endianStr))
 
 	p.config.Signals <- crc_signal_run
 
@@ -205,29 +202,27 @@ func (p *CRC)readOnlyCheck(mb []byte){
 		if crc_count != 0{ 
 			crc_count = 0
 			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
-										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
-										    "最大失败次数为%d",crc_count,p.config.NotPassLimit))
+					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
+					   crc_count,p.config.NotPassLimit))
 		}
 		p.config.Signals <- crc_signal_normal
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
 		if crc_count != 0{
 			crc_count = 0
 			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
-										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
-										    "最大失败次数为%d,但是当前这一字节数组存在大小端颠倒的问题",
-											crc_count,p.config.NotPassLimit))
+					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
+					   "但是当前这一字节数组存在大小端颠倒的问题",crc_count,p.config.NotPassLimit))
 		}
 		p.config.Signals <- crc_signal_upsidedown
 	}else if crc_count < p.config.NotPassLimit{
 		crc_count++
 		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
-									fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的"+
-									   "最大连续失败次数为%d",crc_count,p.config.NotPassLimit))
+				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
+				   crc_count,p.config.NotPassLimit))
 	}else{
 		p.config.Errors <- NewError(CRC_PANIC,p.config.UniqueId, 
-									 fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的"+
-										"最大次数，系统设定的最大连续失败次数为%d",
-										crc_count,p.config.NotPassLimit))
+				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
+				   "次数为%d",crc_count,p.config.NotPassLimit))
 		crc_count =0
 		p.config.Signals <- crc_signal_panic
 		//暂不设计销毁逻辑
@@ -242,8 +237,8 @@ func (p *CRC)newChanCheck(mb []byte){
 		if crc_count != 0{
 			crc_count = 0
 			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
-										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
-										    "最大失败次数为%d",crc_count,p.config.NotPassLimit))
+					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
+					   crc_count,p.config.NotPassLimit))
 		}
 		
 		p.config.Signals <- crc_signal_normal
@@ -256,9 +251,8 @@ func (p *CRC)newChanCheck(mb []byte){
 		if crc_count != 0{
 			crc_count = 0
 			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
-										 fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的"+
-										    "最大失败次数为%d,但是当前这一字节数组存在大小端颠倒的问题",
-											crc_count,p.config.NotPassLimit))
+					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
+					   "但是当前这一字节数组存在大小端颠倒的问题",crc_count,p.config.NotPassLimit))
 		}
 
 		p.config.Signals <- crc_signal_upsidedown
@@ -270,16 +264,16 @@ func (p *CRC)newChanCheck(mb []byte){
 	}else if crc_count < p.config.NotPassLimit{
 		crc_count++
 		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
-									fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败"+
-									   "次数为%d",crc_count,p.config.NotPassLimit))
+				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",crc_count,
+				   p.config.NotPassLimit))
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
 		p.config.NotPassNews <-p.bytesHandler.Bytes()
 	}else{
 		p.config.Errors <-NewError(CRC_PANIC,p.config.UniqueId, 
-									fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，"+
-									   "系统设定的最大连续失败次数为%d",crc_count,p.config.NotPassLimit))
+				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
+				   "次数为%d",crc_count,p.config.NotPassLimit))
 		crc_count =0
 
 		p.bytesHandler.Reset()

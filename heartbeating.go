@@ -83,9 +83,9 @@ func (p *HeartBeating)Init(heartBeatingConfigAbs Config) error{
 	
 	p.config = c
 
-	hb_signal_rebuild = NewSignal(HEARTBREATING_REBUILD,c.UniqueId, "")
-	hb_signal_normal  = NewSignal(HEARTBREATING_NORMAL,c.UniqueId, "")
-	hb_signal_panic = NewSignal(HEARTBREATING_PANIC,c.UniqueId, "")
+	hb_signal_rebuild = 	NewSignal(HEARTBREATING_REBUILD,c.UniqueId, "")
+	hb_signal_normal  = 	NewSignal(HEARTBREATING_NORMAL,c.UniqueId, "")
+	hb_signal_panic   = 	NewSignal(HEARTBREATING_PANIC,c.UniqueId, "")
 	
 	return nil
 }
@@ -134,15 +134,13 @@ func (p *HeartBeating)Run(){
 				if hb_count < p.config.TimeoutLimit{
 					p.timer.Reset(p.config.TimeoutSec)
 					hb_count++
-					p.config.Errors <- NewError(HEARTBREATING_TIMEOUT,
-												p.config.UniqueId,fmt.Sprintf("连续第%d次超时，"+
-												"当前系统设定的最大超时次数为%d",
-												hb_count,p.config.TimeoutLimit))
+					p.config.Errors <- NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,
+						    fmt.Sprintf("连续第%d次超时，当前系统设定的最大超时次数为%d",
+						       hb_count,p.config.TimeoutLimit))
 				}else{
-					p.config.Errors <-NewError(HEARTBREATING_PANIC,
-												p.config.UniqueId, fmt.Sprintf("连续第%d次超时"+
-												"已超过系统设定的最大超时次数，系统设定的最大超时次数为%d",
-												hb_count,p.config.TimeoutLimit))
+					p.config.Errors <-NewError(HEARTBREATING_PANIC,p.config.UniqueId,
+							fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，系统设定的最大超时"+
+							   "次数为%d",hb_count,p.config.TimeoutLimit))
 					hb_count =0
 					p.config.Signals <- hb_signal_panic
 					//进行析构，但是暂时先不进行
@@ -154,18 +152,16 @@ func (p *HeartBeating)Run(){
 				/*Reset一个timer前必须先正确的关闭它*/
 				if p.timer.Stop() == STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
-					p.config.Errors <-NewError(HEARTBREATING_TIMERLIMITED,
-												p.config.UniqueId,fmt.Sprintf("heartbeating适配器"+
-												"发生了“计时器未超时下的数据临界事件”,计时器自身的管道"+
-												"已正常排空，uid为%s",p.config.UniqueId)) 
+					p.config.Errors <-NewError(HEARTBREATING_TIMERLIMITED,p.config.UniqueId,
+							fmt.Sprintf("heartbeating适配器发生了“计时器未超时下的数据临界事件”,"+
+							   "计时器自身的管道已正常排空，uid为%s",p.config.UniqueId)) 
 				}
 				
 				if hb_count != 0{
 					hb_count =0
-					p.config.Signals <-NewSignal(HEARTBREATING_RECOVERED,
-												 p.config.UniqueId, fmt.Sprintf("已从第%d次超时"+
-												 "中恢复，当前系统设定的最大超时次数为%d",
-												 hb_count,p.config.TimeoutLimit))
+					p.config.Signals <-NewSignal(HEARTBREATING_RECOVERED,p.config.UniqueId,
+						    fmt.Sprintf("已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
+							   hb_count,p.config.TimeoutLimit))
 				}
 
 				p.timer.Reset(p.config.TimeoutSec)
