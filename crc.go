@@ -13,7 +13,6 @@ import (
 
 const CRC_RIVERNODE_NAME = "crc"
 
-var crc_signal_normal, crc_signal_upsidedown, crc_signal_panic Signal
 
 type CRCConfig struct{
 	UniqueId 		  			string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
@@ -23,6 +22,7 @@ type CRCConfig struct{
 	Mode 			  			int /*define.READONLY或define.NEWCHAN*/
 	IsBigEndian 	  			bool
 	NotPassLimit      			int
+	
 	Raws 		      			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	PassNews 		  			chan []byte /*校验通过切去掉校验码的新切片*/
@@ -42,13 +42,20 @@ type CRC struct{
 	mbTable 			[]uint16
    	bytesHandler 		*bytes.Buffer
 	config 				*CRCConfig
+
+	countor 			int
+	signal_run 			Signal
+	signal_upsidedown 	Signal
+	signal_fused 		Signal
+
+	stop				chan struct{}
 }
 
 func (p *CRC)Name()string{
 	return CRC_RIVERNODE_NAME
 }
 
-func (p *CRC)Init(CRCConfigAbs Config) error{
+func (p *CRC)Construct(CRCConfigAbs Config) error{
 	if CRCConfigAbs.Name() != CRC_RIVERNODE_NAME {
 		return errors.New("crc river_node init error, config must CRCConfig")
 	}
@@ -124,52 +131,106 @@ func (p *CRC)Init(CRCConfigAbs Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
-	crc_signal_normal 	  = NewSignal(CRC_NORMAL, c.UniqueId, "") 
-	crc_signal_upsidedown = NewSignal(CRC_UPSIDEDOWN, c.UniqueId, "")
-	crc_signal_panic 	  = NewSignal(CRC_PANIC, c.UniqueId, "")
+	p.signal_upsidedown = NewSignal(CRC_UPSIDEDOWN, c.UniqueId, "")
+	p.signal_fused 	  	= NewSignal(CRC_FUSED, c.UniqueId, "")
+
+
+	endianStr := ""
+	modeStr   := ""
+
+	if p.config.IsBigEndian{
+		endianStr ="大端模式"
+	}else{
+		endianStr ="小端模式"
+	}
+
+	if p.config.Mode == READONLY{
+		modeStr ="只判断是否校验通过，只将结果通过Signals管道返回给上层(READONLY)"
+	}else if p.config.Mode == NEWCHAN{
+		modeStr ="不仅仅判断是否校验通过，并为通过与未通过校验的数据分别创建新的管道(NEWCHAN)"
+	}
+	
+	p.signal_run = NewSignal(CRC_RUN,p.config.UniqueId,
+		fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
+		   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
+
+
+	p.stop =make(chan struct{})
 
 	return nil
 }
 
-var (
-	crc_count int
-	crc_endianStr string
-	crc_modeStr string
-	crc_signal_run Signal
-)
 
 func (p *CRC)Run(){
-	if p.config.IsBigEndian{
-		crc_endianStr ="大端模式"
-	}else{
-		crc_endianStr ="小端模式"
-	}
 
-	if p.config.Mode == READONLY{
-		crc_modeStr ="只判断是否校验通过，只将结果通过Signals管道返回给上层(READONLY)"
-	}else if p.config.Mode == NEWCHAN{
-		crc_modeStr ="不仅仅判断是否校验通过，并为通过与未通过校验的数据分别创建新的管道(NEWCHAN)"
-	}
-	
-	crc_signal_run = NewSignal(CRC_RUN,p.config.UniqueId,
-		fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
-		   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, crc_modeStr, crc_endianStr))
+	p.config.Signals <- p.signal_run
 
-	p.config.Signals <- crc_signal_run
 
+	/** 
+	 * 如下为Run()的核心，也就是注入数据的操作环节
+	 * 或者说是对数据源的使用环节
+	 * 当Raws被关闭后，至少系统中的数据流动框架会立刻回归到Construct()时的状态
+	 */
 	switch p.config.Mode{
 	case READONLY:
 		go func(){
-			for mb := range p.config.Raws{
-				p.readOnlyCheck(mb)
+			defer p.reactiveDestruct()
+			for {
+				select{
+				case mb, ok := <-p.config.Raws:
+					if !ok{ return }
+					if !p.readOnlyCheck(mb){ return }
+				case <-p.stop:
+					return
+				}
 			}
 		}()
 	case NEWCHAN:
 		go func(){
-			for mb := range p.config.Raws{
-				p.newChanCheck(mb)
+			defer p.reactiveDestruct()
+			for {
+				select{
+				case mb, ok := <-p.config.Raws:
+					if !ok{ return }
+					if !p.newChanCheck(mb){ return }
+				case <-p.stop:
+					return
+				}
 			}
 		}()
+	}
+}
+
+/**
+ * 基于：
+ * “无论怎样都不应该在消费端关闭channel,因为在消费端无法判断生产端是否还会向通道中发送元素值”
+ * 的设计思路，ProactiveDestruct()的存在是不合理的
+ */
+//主动 - proactive
+//主动析构并不会主动触发Raws管道的关闭，具体请参考heartbeating适配器
+//但是也一定要慎重使用
+func (p *CRC)ProactiveDestruct(){
+	p.config.Signals <-NewSignal(CRC_PROACTIVEDESTRUCT,p.config.UniqueId,
+	 "注意，由于某些原因CRC校验包主动调用了显式析构方法")
+	/**
+	 * 析构数据源,析构后Run()内部会自动触发下面的reactiveDestruct()方法
+	 */
+	p.stop<-struct{}{}
+	
+}
+
+//被动 - reactive
+//被动析构是检测到Raws被上层关闭后的响应式析构操作
+func (p *CRC)reactiveDestruct(){
+	p.config.Signals <-NewSignal(CRC_REACTIVEDESTRUCT,p.config.UniqueId,"CRC校验包触发了隐式析构方法")
+
+	//析构数据源
+	close(p.stop)
+	switch p.config.Mode{
+	case READONLY:
+	case NEWCHAN:
+		close(p.config.NotPassNews)
+		close(p.config.PassNews)
 	}
 }
 
@@ -194,94 +255,104 @@ func init() {
 
 
 //验证一个需要验证的modbus码
-func (p *CRC)readOnlyCheck(mb []byte){ 
+func (p *CRC)readOnlyCheck(mb []byte) bool { 
 
 	raw,crc := p.midModbus(mb) 
 
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		if crc_count != 0{ 
-			crc_count = 0
+		if p.countor != 0{ 
+			p.countor = 0
 			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
-					   crc_count,p.config.NotPassLimit))
+					   p.countor,p.config.NotPassLimit))
 		}
-		p.config.Signals <- crc_signal_normal
+
+		return true
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		if crc_count != 0{
-			crc_count = 0
+		if p.countor != 0{
+			p.countor = 0
 			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
-					   "但是当前这一字节数组存在大小端颠倒的问题",crc_count,p.config.NotPassLimit))
+					   "但是当前这一字节数组存在大小端颠倒的问题",p.countor,p.config.NotPassLimit))
 		}
-		p.config.Signals <- crc_signal_upsidedown
-	}else if crc_count < p.config.NotPassLimit{
-		crc_count++
+
+		//无论countor是否为0都会返回upsidedown信号
+		p.config.Signals <- p.signal_upsidedown
+		return true
+
+	}else if p.countor < p.config.NotPassLimit{
+		p.countor++
 		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
 				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
-				   crc_count,p.config.NotPassLimit))
+				   p.countor,p.config.NotPassLimit))
+		return true
 	}else{
-		p.config.Errors <- NewError(CRC_PANIC,p.config.UniqueId, 
+		p.config.Errors <- NewError(CRC_FUSED,p.config.UniqueId, 
 				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-				   "次数为%d",crc_count,p.config.NotPassLimit))
-		crc_count =0
-		p.config.Signals <- crc_signal_panic
-		//暂不设计销毁逻辑
+				   "次数为%d",p.countor,p.config.NotPassLimit))
+		p.countor =0
+		p.config.Signals <- p.signal_fused
+		return false
 	}
 }
 
 //验证并生成一个全新的切片变量并放入newchan管道中，这个全新的切片的底层数组也是全新的
-func (p *CRC)newChanCheck(mb []byte){
+func (p *CRC)newChanCheck(mb []byte) bool{
 	raw,crc := p.midModbus(mb) 
 
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		if crc_count != 0{
-			crc_count = 0
+		if p.countor != 0{
+			p.countor = 0
 			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
-					   crc_count,p.config.NotPassLimit))
+					   p.countor,p.config.NotPassLimit))
 		}
-		
-		p.config.Signals <- crc_signal_normal
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
 		p.config.PassNews <-p.bytesHandler.Bytes()
+
+		return true
 
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		if crc_count != 0{
-			crc_count = 0
+		if p.countor != 0{
+			p.countor = 0
 			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
-					   "但是当前这一字节数组存在大小端颠倒的问题",crc_count,p.config.NotPassLimit))
+					   "但是当前这一字节数组存在大小端颠倒的问题",p.countor,p.config.NotPassLimit))
 		}
 
-		p.config.Signals <- crc_signal_upsidedown
+		p.config.Signals <- p.signal_upsidedown
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
 		p.config.PassNews <-p.bytesHandler.Bytes()
 
-	}else if crc_count < p.config.NotPassLimit{
-		crc_count++
+		return true
+
+	}else if p.countor < p.config.NotPassLimit{
+		p.countor++
 		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
-				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",crc_count,
+				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",p.countor,
 				   p.config.NotPassLimit))
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
 		p.config.NotPassNews <-p.bytesHandler.Bytes()
+
+		return true
 	}else{
-		p.config.Errors <-NewError(CRC_PANIC,p.config.UniqueId, 
+		p.config.Errors <-NewError(CRC_FUSED,p.config.UniqueId, 
 				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-				   "次数为%d",crc_count,p.config.NotPassLimit))
-		crc_count =0
+				   "次数为%d",p.countor,p.config.NotPassLimit))
+		p.countor =0
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(mb)
 		p.config.NotPassNews <- p.bytesHandler.Bytes()
 
-		p.config.Signals <- crc_signal_panic
-		//暂不设计销毁逻辑
+		p.config.Signals <- p.signal_fused
+		return false
 	}
 }
 

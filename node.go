@@ -35,8 +35,10 @@ func Register(Name string, F NodeAbstractFunc) {
 type NodeAbstractFunc func() NodeAbstract
 type NodeAbstract interface {
 	Name() string
-	Init(config Config) error
+	Construct(config Config) error
 	Run()
+	ProactiveDestruct()
+	reactiveDestruct()
 }
 
 

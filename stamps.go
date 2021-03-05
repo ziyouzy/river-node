@@ -41,13 +41,17 @@ type Stamps struct{
 	bytesHandler	*bytes.Buffer
 	tailHandler		*bytes.Buffer
 	config 			*StampsConfig
+
+	signal_run      Signal
+
+	stop			chan struct{}
 }
 
 func (p *Stamps)Name()string{
 	return STAMPS_RIVERNODE_NAME
 }
 
-func (p *Stamps)Init(stampsConfigAbs Config) error{
+func (p *Stamps)Construct(stampsConfigAbs Config) error{
 	if stampsConfigAbs.Name() != STAMPS_RIVERNODE_NAME {
 		return errors.New("stamps river-node init error, config must StampsConfig")
 	}
@@ -83,6 +87,29 @@ func (p *Stamps)Init(stampsConfigAbs Config) error{
 
 	if(p.config.Mode == HEADANDTAIL) { p.tailHandler = bytes.NewBuffer([]byte{}) } 
 
+
+	timeStampStr :=""
+	modeStr 	 :=""
+
+	if p.config.AutoTimeStamp{
+		timeStampStr = "不会首先自动添加时间戳"
+	}else{
+		timeStampStr = "会首先自动添加时间戳"
+	}
+
+	if p.config.Mode == HEAD{
+		modeStr ="将某个或某些印章戳添加于数据头部"
+	}else if p.config.Mode == TAIL{
+		modeStr ="将某个或某些印章戳添加于数据尾部"
+	}else if p.config.Mode == HEADANDTAIL{
+		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
+	}
+	
+	p.signal_run = NewSignal(STAMPS_RUN, p.config.UniqueId, fmt.Sprintf("stamps适配器开始运行，"+
+	 "其UniqueId为%s,Mode为%s并且%s。",p.config.UniqueId, modeStr,timeStampStr))
+
+	p.stop =make(chan struct{})
+
 	return nil
 }
 
@@ -92,32 +119,8 @@ func (p *Stamps)Init(stampsConfigAbs Config) error{
  * Run()的一切问题都通过signal的方式传递至管道
  */
 
-var (
-	stamps_signal_run Signal
-	stamps_modeStr string
-	stamps_timeStampStr string
-)
-
 func (p *Stamps)Run(){
-	if p.config.AutoTimeStamp{
-		stamps_timeStampStr = "不会首先自动添加时间戳"
-	}else{
-		stamps_timeStampStr = "会首先自动添加时间戳"
-	}
-
-	if p.config.Mode == HEAD{
-		stamps_modeStr ="将某个或某些印章戳添加于数据头部"
-	}else if p.config.Mode == TAIL{
-		stamps_modeStr ="将某个或某些印章戳添加于数据尾部"
-	}else if p.config.Mode == HEADANDTAIL{
-		stamps_modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
-	}
-	
-	stamps_signal_run = NewSignal(STAMPS_RUN, p.config.UniqueId, 
-				 fmt.Sprintf("stamps适配器开始运行，其UniqueId为%s,Mode为%s并且%s。",
-							 p.config.UniqueId, stamps_modeStr,stamps_timeStampStr))
-
-	p.config.Signals <- stamps_signal_run
+	p.config.Signals <- p.signal_run
 
 	switch p.config.Mode{
 	case HEAD:
@@ -141,7 +144,20 @@ func (p *Stamps)Run(){
 	}
 }
 
+func (p *Stamps)ProactiveDestruct(){
+	p.config.Signals <-NewSignal(STAMPS_PROACTIVEDESTRUCT,p.config.UniqueId,
+		    "注意，由于某些原因印章包主动调用了显式析构方法")
 
+	p.stop<-struct{}{}	
+}
+
+
+func (p *Stamps)reactiveDestruct(){
+	p.config.Signals <-NewSignal(STAMPS_REACTIVEDESTRUCT,p.config.UniqueId,
+		"印章包触发了隐式析构方法")
+
+	close(p.stop)
+}
 
 
 func NewStamps() NodeAbstract {
