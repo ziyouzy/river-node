@@ -190,9 +190,9 @@ func eventRecriver(t *testing.T){
     go func(){
    	    for {
             select{
-            case sig := <-Events:
+            case eve := <-Events:
                 /*最重要的是，触发某个事件后，接下来去做什么*/
-                uniqueid, code, detail, _:= sig.Description()
+                uniqueid, code, detail, _:= eve.Description()
                 //fmt.Println("uniqueid, code, detail-",uniqueid, code, detail)
                 switch code{
                 case RAWSIMULATOR_RUN:
