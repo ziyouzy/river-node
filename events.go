@@ -1,7 +1,7 @@
-/** signal结构类既可以作为river-node包数据传输所需的重要媒介"Signal"，传入Signals管道
+/** event结构类既可以作为river-node包数据传输所需的重要媒介"Event"，传入Events管道
  * 同时他也实现了Error方法，于是也可以作为错误传入Errors管道
  * 他内部的各个常量是不具有“正常/异常属性”的，就和physicalnode一样，不具有“正常/超限”属性
- * 而他被传入的管道是Signals还是Errors才是决定他拥有“某种状态(正常/异常)”的时刻
+ * 而他被传入的管道是Events还是Errors才是决定他拥有“某种状态(正常/异常)”的时刻
  */
 
 package river_node
@@ -43,34 +43,34 @@ const (
 )
 
 
-func NewSignal(code int, uniqueid string, commit string) Signal{
+func NewEvent(code int, uniqueid string, commit string) Event{
 	if uniqueid ==""&&code ==0 {
 		//fmt.error
 		return nil
 	}
 
-	s :=&signal{
+	eve :=&event{
 		UniqueId: 	uniqueid,
 		Code: 		code,
 		Commit:		commit,
 	}
-	return s
+	return eve
 }
 
-type Signal interface{
+type Event interface{
 	Description()(string, int, string, string)
 }
 
 
 
-type signal struct{
+type event struct{
 	UniqueId string
 	Code 	 int
 	Commit 	 string
 }
 
 
-func (p *signal)Description()(uniqueid string, code int, conststring string, commit string){
+func (p *event)Description()(uniqueid string, code int, conststring string, commit string){
 	uniqueid = p.UniqueId;	code = p.Code;	commit =p.Commit
 
 	switch code{

@@ -10,16 +10,16 @@ func NewError(code int, uniqueid string, commit string)error{
 		return nil
 	}
 	
-	e :=&signal{
+	err :=&event{
 		UniqueId: 	uniqueid,
 		Code: 		code,
 		Commit:		commit,
 	}
-	return e	
+	return err	
 }
 
-/*让signal也实现golang内置接口error，从而让他也变成一个error*/
-func (p *signal)Error() (s string) {
+/*让event也实现golang内置接口error，从而让他也变成一个error*/
+func (p *event)Error() (s string) {
 	_, _, conststring, commit  := p.Description()
 	
 	if commit ==""{

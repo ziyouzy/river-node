@@ -36,7 +36,7 @@ type AnotherExmaple1Config struct{
 
 	Mode int
 
-	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	EventChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
 	RawinChan chan []byte
 
@@ -71,8 +71,8 @@ func (p *AnotherExmaple1)Init(anotherExmaple1ConfigAbs river_node.Config) error{
 	value := reflect.ValueOf(anotherExmaple1ConfigAbs)
 	config := value.Interface().(*AnotherExmaple1Config)
 
-	if config.signalChan == nil||config.rawChan == nil||config.newChan == nil{
-		return errors.New("anotherexmaple1 river-node init error, slotChan or signalChan "+
+	if config.eventChan == nil||config.rawChan == nil||config.newChan == nil{
+		return errors.New("anotherexmaple1 river-node init error, slotChan or eventChan "+
 		                  "or newChan is nil")
 	}
 
@@ -105,7 +105,7 @@ func (p *AnotherExmaple1)Run(){
 			for sl := range p.config.rawChan{
 
 				/*仅仅作为示范：*/
-				p.config.signalChan<-define.ANOTHEREXAMPLE_TEST1
+				p.config.eventChan<-define.ANOTHEREXAMPLE_TEST1
 				p.config.newChan<-&another.AnotherStruct{
 						TimeStamp : time.Now().UnixNano(),
 						Tip : "仅仅作为示范(AnotherExmaple1)",
@@ -118,7 +118,7 @@ func (p *AnotherExmaple1)Run(){
 		}()
 	default:
 		/*byte为int8，rune为int32*/
-		p.config.signalChan<-define.ANOTHEREXAMPLE_ERR
+		p.config.eventChan<-define.ANOTHEREXAMPLE_ERR
 	}
 }
 

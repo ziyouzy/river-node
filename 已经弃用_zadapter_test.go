@@ -19,8 +19,8 @@ func TestNode(t *testing.T) {
 	defer logger.Destory()
 	/*此管道的作用是测试信号的生成*/
 	testBytesSenderCH := make(chan []byte)
-	/*主线程中signal的统一管理管道*/
-	mainTestSignalCh := make(chan int)
+	/*主线程中event的统一管理管道*/
+	mainTestEventCh := make(chan int)
 	/*心跳包的事件注入管道*/
 	mainTestHbRawCh :=make(chan struct{})
 
@@ -90,7 +90,7 @@ func TestNode(t *testing.T) {
 	heartBeatingConfig := &heartbeating.HeartBeatingConfig{
 		Timeout : 8 * time.Second,
 		UniqueId : "testCh",
-		SignalChan : mainTestSignalCh,
+		EventChan : mainTestEventCh,
 		RawChan : mainTestHbRawCh,
 	}
 
@@ -101,18 +101,18 @@ func TestNode(t *testing.T) {
 	heartBeatingAbs.Run()
 
 
-	/** 业务流程的第一步，先进行signal的统一回收工作 
+	/** 业务流程的第一步，先进行event的统一回收工作 
 	    注意，这里会进行的是“！所有！”信号的回收
 		此线程的作用是信号的处理
 	 */
 	 go func(){
-		defer close(mainTestSignalCh)
-		for signal := range mainTestSignalCh{
-			switch signal{
+		defer close(mainTestEventCh)
+		for event := range mainTestEventCh{
+			switch event{
 			case define.HEARTBREATING_NORMAL:
-				fmt.Println("signal:", "HEARTBREATING_NORMAL")
+				fmt.Println("event:", "HEARTBREATING_NORMAL")
 			case define.HEARTBREATING_TIMEOUT:
-				fmt.Println("signal:", "HEARTBREATING_TIMEOUT")
+				fmt.Println("event:", "HEARTBREATING_TIMEOUT")
 			case define.CRC_NORMAL:
 				fmt.Println("这里不过多进行演示，详细的演示会在river-node/test包内进行")
 			case define.CRC_UPSIDEDOWN:
@@ -180,7 +180,7 @@ func TestNode(t *testing.T) {
 
 
 	/** 如下线程用来实现各个适配器所生成新数据的数据调度工作
-	 * 要明确全局只会有1个signal回收管道，这个回收管道所在携程就是主携程，设计时要时刻考虑、遵循单向调用链模式
+	 * 要明确全局只会有1个event回收管道，这个回收管道所在携程就是主携程，设计时要时刻考虑、遵循单向调用链模式
 	 
 	 * 之后的思路，每个适配器都会有独立的数据注入管道
 	 * 都是通过各自的config对象类实现“管道的对接”与“新事件的生成与注入”

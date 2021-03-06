@@ -47,7 +47,7 @@ https://baike.baidu.com/item/MVC%E6%A1%86%E6%9E%B6/9241230?fromtitle=mvc&fromid=
 设计各个rnode的析构方式，这项工作将留给设计package zconn再去完成  
 
 **2021年2月23日11点25分:**  
-在真正的实战中，应该尽量避免singal打印内容，signal应该奉行少说多做原则  
+在真正的实战中，应该尽量避免singal打印内容，event应该奉行少说多做原则  
 而error则会担起“汇报的责任”  
 同时那个模块出现了error，需要在哪个层解决，而不是经由singal调度解决问题  
 这确实是最近总结的很重要的原则之一  

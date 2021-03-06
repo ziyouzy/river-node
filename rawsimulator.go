@@ -17,7 +17,7 @@ const RAWSIMULATOR_RIVERNODE_NAME = "testdatacreater"
 
 type RawSimulatorConfig struct{
 	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
-	Signals 		chan Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 		chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	//Errors 			chan error
 		 
 	StepSec			time.Duration
@@ -33,7 +33,7 @@ type RawSimulator struct{
 	sourceTable					[][]byte     
 	config 						*RawSimulatorConfig
 
-	rawsimulator_signal_run 	Signal
+	rawsimulator_event_run 	Event
 	stop                		chan struct{} 
 }
 
@@ -56,8 +56,8 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 		return errors.New("rawsimulator river-node init error uniqueId is nil")
 	}
 
-	if c.Signals == nil /*|| c.Errors == nil*/{
-		return errors.New("rawsimulator river-node init error, Signals is nil")
+	if c.Events == nil /*|| c.Errors == nil*/{
+		return errors.New("rawsimulator river-node init error, Events is nil")
 	}
 
 	if c.StepSec == (0 * time.Second) || c.News == nil{
@@ -72,7 +72,7 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 		[]byte{0x05, 0x06, 0x07, 0x08},
 		[]byte{0x01, 0x04, 0x09, 0x13},}
 
-	p.rawsimulator_signal_run = NewSignal(RAWSIMULATOR_RUN,p.config.UniqueId,
+	p.rawsimulator_event_run = NewEvent(RAWSIMULATOR_RUN,p.config.UniqueId,
 	 "开始借助package testdatacreater进行测试，此包的作用是将一个临时的[]byte数据源river-node化")
 
 	p.stop =make(chan struct{})
@@ -82,7 +82,7 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 
 
 func (p *RawSimulator)Run(){
-	p.config.Signals <- p.rawsimulator_signal_run
+	p.config.Events <- p.rawsimulator_event_run
 
 	go func(){
 		defer p.reactiveDestruct()
@@ -105,13 +105,13 @@ func (p *RawSimulator)Run(){
 
 //作为数据源，这个方法到时有很多合理的使用场景
 func (p *RawSimulator)ProactiveDestruct(){
-	p.config.Signals <-NewSignal(RAWSIMULATOR_PROACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(RAWSIMULATOR_PROACTIVEDESTRUCT,p.config.UniqueId,
 	 "注意，由于某些原因数据源模拟器主动调用了显式析构方法")
 	p.stop <-struct{}{}
 }
 
 func (p *RawSimulator)reactiveDestruct(){
-	p.config.Signals <-NewSignal(RAWSIMULATOR_REACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(RAWSIMULATOR_REACTIVEDESTRUCT,p.config.UniqueId,
 	 "数据源模拟器触发了隐式析构方法")
 
 	//隐式析构的必要步骤，可触发下游river-node的析构责任链

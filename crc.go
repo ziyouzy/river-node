@@ -16,7 +16,7 @@ const CRC_RIVERNODE_NAME = "crc"
 
 type CRCConfig struct{
 	UniqueId 		  			string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
-	Signals 		  			chan Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 		  			chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			  			chan error
 
 	Mode 			  			int /*define.READONLY或define.NEWCHAN*/
@@ -44,9 +44,9 @@ type CRC struct{
 	config 				*CRCConfig
 
 	countor 			int
-	signal_run 			Signal
-	signal_upsidedown 	Signal
-	signal_fused 		Signal
+	event_run 			Event
+	event_upsidedown 	Event
+	event_fused 		Event
 
 	stop				chan struct{}
 }
@@ -69,8 +69,8 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 		return errors.New("crc river_node init error, uniqueId is nil")
 	}
 
-	if c.Signals == nil || c.Errors == nil{
-		return errors.New("crc river_node init error, Signals or Errors is nil")
+	if c.Events == nil || c.Errors == nil{
+		return errors.New("crc river_node init error, Events or Errors is nil")
 	}
 
 	if c.Raws == nil || c.NotPassLimit ==0{
@@ -131,8 +131,8 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
-	p.signal_upsidedown = NewSignal(CRC_UPSIDEDOWN, c.UniqueId, "")
-	p.signal_fused 	  	= NewSignal(CRC_FUSED, c.UniqueId, "")
+	p.event_upsidedown = NewEvent(CRC_UPSIDEDOWN, c.UniqueId, "")
+	p.event_fused 	  	= NewEvent(CRC_FUSED, c.UniqueId, "")
 
 
 	endianStr := ""
@@ -145,12 +145,12 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}
 
 	if p.config.Mode == READONLY{
-		modeStr ="只判断是否校验通过，只将结果通过Signals管道返回给上层(READONLY)"
+		modeStr ="只判断是否校验通过，只将结果通过Events管道返回给上层(READONLY)"
 	}else if p.config.Mode == NEWCHAN{
 		modeStr ="不仅仅判断是否校验通过，并为通过与未通过校验的数据分别创建新的管道(NEWCHAN)"
 	}
 	
-	p.signal_run = NewSignal(CRC_RUN,p.config.UniqueId,
+	p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
 		fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
 		   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
 
@@ -163,7 +163,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 func (p *CRC)Run(){
 
-	p.config.Signals <- p.signal_run
+	p.config.Events <- p.event_run
 
 
 	/** 
@@ -210,7 +210,7 @@ func (p *CRC)Run(){
 //主动析构并不会主动触发Raws管道的关闭，具体请参考heartbeating适配器
 //但是也一定要慎重使用
 func (p *CRC)ProactiveDestruct(){
-	p.config.Signals <-NewSignal(CRC_PROACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(CRC_PROACTIVEDESTRUCT,p.config.UniqueId,
 	 "注意，由于某些原因CRC校验包主动调用了显式析构方法")
 	/**
 	 * 析构数据源,析构后Run()内部会自动触发下面的reactiveDestruct()方法
@@ -222,7 +222,7 @@ func (p *CRC)ProactiveDestruct(){
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *CRC)reactiveDestruct(){
-	p.config.Signals <-NewSignal(CRC_REACTIVEDESTRUCT,p.config.UniqueId,"CRC校验包触发了隐式析构方法")
+	p.config.Events <-NewEvent(CRC_REACTIVEDESTRUCT,p.config.UniqueId,"CRC校验包触发了隐式析构方法")
 
 	//析构数据源
 	close(p.stop)
@@ -262,7 +262,7 @@ func (p *CRC)readOnlyCheck(mb []byte) bool {
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
 		if p.countor != 0{ 
 			p.countor = 0
-			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
+			p.config.Events <- NewEvent(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
 					   p.countor,p.config.NotPassLimit))
 		}
@@ -271,13 +271,13 @@ func (p *CRC)readOnlyCheck(mb []byte) bool {
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
 		if p.countor != 0{
 			p.countor = 0
-			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
+			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
 					   "但是当前这一字节数组存在大小端颠倒的问题",p.countor,p.config.NotPassLimit))
 		}
 
 		//无论countor是否为0都会返回upsidedown信号
-		p.config.Signals <- p.signal_upsidedown
+		p.config.Events <- p.event_upsidedown
 		return true
 
 	}else if p.countor < p.config.NotPassLimit{
@@ -291,7 +291,7 @@ func (p *CRC)readOnlyCheck(mb []byte) bool {
 				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
 				   "次数为%d",p.countor,p.config.NotPassLimit))
 		p.countor =0
-		p.config.Signals <- p.signal_fused
+		p.config.Events <- p.event_fused
 		return false
 	}
 }
@@ -303,7 +303,7 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
 		if p.countor != 0{
 			p.countor = 0
-			p.config.Signals <- NewSignal(CRC_RECOVERED,p.config.UniqueId,
+			p.config.Events <- NewEvent(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
 					   p.countor,p.config.NotPassLimit))
 		}
@@ -317,12 +317,12 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
 		if p.countor != 0{
 			p.countor = 0
-			p.config.Signals <-NewSignal(CRC_RECOVERED,p.config.UniqueId,
+			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
 					   "但是当前这一字节数组存在大小端颠倒的问题",p.countor,p.config.NotPassLimit))
 		}
 
-		p.config.Signals <- p.signal_upsidedown
+		p.config.Events <- p.event_upsidedown
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
@@ -351,7 +351,7 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 		p.bytesHandler.Write(mb)
 		p.config.NotPassNews <- p.bytesHandler.Bytes()
 
-		p.config.Signals <- p.signal_fused
+		p.config.Events <- p.event_fused
 		return false
 	}
 }

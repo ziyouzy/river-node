@@ -16,9 +16,9 @@ import (
 )
  
 
-/*主线程是signal与error的统一管理管道*/
+/*主线程是event与error的统一管理管道*/
 var (
-    Signals chan Signal
+    Events chan Event
     Errors  chan error
 )
 
@@ -40,9 +40,9 @@ func TestInit(t *testing.T) {
 
 
 
-    Signals = make(chan Signal)
+    Events = make(chan Event)
     Errors  = make(chan error)
-    signalRecriver(t)
+    eventRecriver(t)
 
 
     rawSimulatorNews   = make(chan []byte)
@@ -52,7 +52,7 @@ func TestInit(t *testing.T) {
     rawSimulatorConfig := &RawSimulatorConfig{
 
         UniqueId:       "testPkg",
-        Signals:        Signals,
+        Events:        Events,
         //Errors:         Errors,
 
         StepSec:		1 * time.Second,
@@ -70,7 +70,7 @@ func TestInit(t *testing.T) {
     heartBeatingConfig   := &HeartBeatingConfig{
 
         UniqueId:       "testPkg",
-        Signals:        Signals,
+        Events:        Events,
         Errors:         Errors,
 
         TimeoutSec:     3 * time.Second,
@@ -90,7 +90,7 @@ func TestInit(t *testing.T) {
     crcConfig            := &CRCConfig{
 
         UniqueId:      "testPkg",
-        Signals:       Signals, /*发送给主进程的信号队列，就像Qt的信号与槽*/
+        Events:       Events, /*发送给主进程的信号队列，就像Qt的信号与槽*/
         Errors:        Errors,
 
         Mode:          NEWCHAN,
@@ -111,7 +111,7 @@ func TestInit(t *testing.T) {
     stampsConfig         := &StampsConfig{
        
         UniqueId:   "testPkg",
-        Signals:    Signals,/*发送给主进程的信号队列，就像Qt的信号与槽*/
+        Events:    Events,/*发送给主进程的信号队列，就像Qt的信号与槽*/
         Errors:     Errors,
 
         Mode:       HEADANDTAIL, 
@@ -185,25 +185,34 @@ func TestInit(t *testing.T) {
 }
 
  
-/*对signal与error进行统一回收和编排对应的触发事件*/
-func signalRecriver(t *testing.T){
+/*对event与error进行统一回收和编排对应的触发事件*/
+func eventRecriver(t *testing.T){
     go func(){
    	    for {
             select{
-            case sig := <-Signals:
+            case sig := <-Events:
                 /*最重要的是，触发某个事件后，接下来去做什么*/
                 uniqueid, code, detail, _:= sig.Description()
                 //fmt.Println("uniqueid, code, detail-",uniqueid, code, detail)
                 switch code{
                 case RAWSIMULATOR_RUN:
                     fmt.Println(uniqueid, "-detail:", detail)
+                case RAWSIMULATOR_REACTIVEDESTRUCT:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case RAWSIMULATOR_PROACTIVEDESTRUCT:
+                    fmt.Println(uniqueid, "-detail:", detail)
+
                 case HEARTBREATING_RUN:
                     fmt.Println(uniqueid, "-detail:", detail)
                 case HEARTBREATING_RECOVERED:
                     fmt.Println(uniqueid, "-detail:", detail)
                 case HEARTBREATING_FUSED:
                     fmt.Println(uniqueid, "-detail:", detail)
-                
+                case HEARTBREATING_REACTIVEDESTRUCT:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case HEARTBREATING_PROACTIVEDESTRUCT:
+                    fmt.Println(uniqueid, "-detail:", detail)
+
                 case CRC_RUN:
                     fmt.Println(uniqueid, "-detail:", detail)
                 case CRC_UPSIDEDOWN:
@@ -212,8 +221,16 @@ func signalRecriver(t *testing.T){
                     fmt.Println(uniqueid, "-detail:", detail)
                 case CRC_FUSED:
                     fmt.Println(uniqueid, "-detail:", detail)
+                case CRC_REACTIVEDESTRUCT:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case CRC_PROACTIVEDESTRUCT:
+                    fmt.Println(uniqueid, "-detail:", detail)
                 
                 case STAMPS_RUN:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case STAMPS_REACTIVEDESTRUCT:
+                    fmt.Println(uniqueid, "-detail:", detail)
+                case STAMPS_PROACTIVEDESTRUCT:
                     fmt.Println(uniqueid, "-detail:", detail)
 
                 default:

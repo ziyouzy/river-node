@@ -1,4 +1,4 @@
-/*p.config.signalChan与p.config.rawinChan均在上层make与close*/
+/*p.config.eventChan与p.config.rawinChan均在上层make与close*/
 
 /** HeartBeating不仅仅可以用作tcp的心跳包
 
@@ -19,7 +19,7 @@ const HB_RIVERNODE_NAME = "heartbeating"
 
 type HeartBeatingConfig struct{
 	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
-	Signals 		chan Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 		chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			chan error
 
 	/** 虽然是面向[]byte的适配器，但是并不需要[]byte做任何操作
@@ -50,8 +50,8 @@ type HeartBeating struct{
 	timeout_countor 	int
 
 	countor 			int
-	signal_run 			Signal
-	signal_fused 		Signal
+	event_run 			Event
+	event_fused 		Event
 
 	stop 				chan struct{}
 }
@@ -76,20 +76,20 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 		             "timeout or uniqueId or timeoutlimit is nil")
 	}
 
-	if c.Signals == nil || c.Errors == nil || c.Raws == nil{
+	if c.Events == nil || c.Errors == nil || c.Raws == nil{
 		return errors.New("heartbeating river-node init error, "+
-					 "Raws or Signals or Errors Raws is nil")
+					 "Raws or Events or Errors Raws is nil")
 	}
 
 	
 	
 	p.config = c
 
-	p.signal_run = NewSignal(HEARTBREATING_RUN,p.config.UniqueId,
+	p.event_run = NewEvent(HEARTBREATING_RUN,p.config.UniqueId,
 	 fmt.Sprintf("heartbeating适配器开始运行，其UniqueId为%s, 最大超时秒数为%d, "+
 		"最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
 		p.config.UniqueId, p.config.TimeoutSec, p.config.TimeoutLimit))
-	p.signal_fused = NewSignal(HEARTBREATING_FUSED,c.UniqueId, "")
+	p.event_fused = NewEvent(HEARTBREATING_FUSED,c.UniqueId, "")
 
 	p.stop =make(chan struct{})
 	
@@ -106,14 +106,14 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 
 
 func (p *HeartBeating)Run(){
-	p.config.Signals <- p.signal_run
+	p.config.Events <- p.event_run
 
 	//并没有这个必要，心跳包只会发生销毁事件和再创建，不会发生重置事件
 	// if p.timer ==nil{		  
 	// 	p.timer = time.NewTimer(p.config.TimeoutSec)
 	// }else{
 	// 	p.timer.Reset(p.config.TimeoutSec)
-	// 	p.config.Signals <- hb_signal_rebuild
+	// 	p.config.Events <- hb_event_rebuild
 	// }
 	p.timer = time.NewTimer(p.config.TimeoutSec)
 
@@ -146,7 +146,7 @@ func (p *HeartBeating)Run(){
 							fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，系统设定的最大超时"+
 							   "次数为%d",p.countor,p.config.TimeoutLimit))
 					p.countor =0
-					p.config.Signals <- p.signal_fused
+					p.config.Events <- p.event_fused
 					return
 				}
 
@@ -163,7 +163,7 @@ func (p *HeartBeating)Run(){
 				
 				if p.countor != 0{
 					p.countor =0
-					p.config.Signals <-NewSignal(HEARTBREATING_RECOVERED,p.config.UniqueId,
+					p.config.Events <-NewEvent(HEARTBREATING_RECOVERED,p.config.UniqueId,
 						    fmt.Sprintf("已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
 							   p.countor,p.config.TimeoutLimit))
 				}
@@ -192,7 +192,7 @@ func (p *HeartBeating)ProactiveDestruct(){
 	 */
 	//不应为其设计主动析构逻辑，因为Raws的关闭一定需要在外层进行
 	//close(p.config.Raws)
-	p.config.Signals <-NewSignal(HEARTBREATING_PROACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(HEARTBREATING_PROACTIVEDESTRUCT,p.config.UniqueId,
 		    "注意，由于某些原因心跳包主动调用了显式析构方法")
 
 	p.stop<-struct{}{}	
@@ -211,7 +211,7 @@ func (p *HeartBeating)reactiveDestruct(){
 	// }
 
 	//析构操作在前，管道内就算有新事件也不需要了
-	p.config.Signals <-NewSignal(HEARTBREATING_REACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(HEARTBREATING_REACTIVEDESTRUCT,p.config.UniqueId,
 		  	"心跳包触发了隐式析构方法")
 	_ = p.timer.Stop()
 	close(p.stop)

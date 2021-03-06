@@ -37,7 +37,7 @@ type AnotherExmaple3Config struct{
 
 	Mode int
 
-	SignalChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	EventChan chan int /*发送给主进程的信号队列，就像Qt的信号与槽*/
 
 	RawinChan chan another.AnotherFunc
 
@@ -68,8 +68,8 @@ func (p *AnotherExmaple3)Init(anotherExmaple3ConfigAbs river_node.Config) error{
 	config := value.Interface().(*AnotherExmaple3Config)
 
 
-	if config.signalChan == nil||config.rawChan == nil||config.newChan == nil{
-		return errors.New("anotherexmaple3 river-node init error, slotChan or signalChan "+
+	if config.eventChan == nil||config.rawChan == nil||config.newChan == nil{
+		return errors.New("anotherexmaple3 river-node init error, slotChan or eventChan "+
 		                  "or newChan is nil")
 	}
 
@@ -100,7 +100,7 @@ func (p *AnotherExmaple3)Run(){
 			for rawf := range p.config.rawChan{
 
 				/*仅仅作为示范：*/
-				p.config.signalChan<-define.ANOTHEREXAMPLE_TEST3
+				p.config.eventChan<-define.ANOTHEREXAMPLE_TEST3
 
 				rawf(append([]byte("测试3(TEST3)"), 0x12,0x33,0xff))
 
@@ -114,7 +114,7 @@ func (p *AnotherExmaple3)Run(){
 			}
 		}()
 	default:
-		p.config.signalChan<-define.ANOTHEREXAMPLE_ERR
+		p.config.eventChan<-define.ANOTHEREXAMPLE_ERR
 	}
 }
 

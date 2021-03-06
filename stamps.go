@@ -1,7 +1,7 @@
 package river_node
 
 import (
-	//"river-node/define"	/*暂时没有需要返回给上层的signal内容*/
+	//"river-node/define"	/*暂时没有需要返回给上层的event内容*/
 	"github.com/ziyouzy/logger"
 	
 	"fmt"
@@ -14,7 +14,7 @@ const STAMPS_RIVERNODE_NAME = "stamps"
 
 type StampsConfig struct{
 	UniqueId 	    string	/*其所属上层Conn的唯一识别标识*/
-	Signals 	    chan Signal /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 	    chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 		    chan error
 	/** 分为三种，HEAD、TAIL、HEADANDTAIL
 	 * 当是HEADANDTAIL模式，切len(stamp)>1时
@@ -42,7 +42,7 @@ type Stamps struct{
 	tailHandler		*bytes.Buffer
 	config 			*StampsConfig
 
-	signal_run      Signal
+	event_run      Event
 
 	stop			chan struct{}
 }
@@ -65,8 +65,8 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		return errors.New("stamps river-node init error, breaking or stamps is nil")
 	}
 
-	if c.Signals == nil || c.Errors ==nil{
-		return errors.New("stamps river-node init error, Signals or Errors is nil")
+	if c.Events == nil || c.Errors ==nil{
+		return errors.New("stamps river-node init error, Events or Errors is nil")
 	}
 
 	if c.Raws == nil || c.News ==nil{
@@ -105,7 +105,7 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
 	}
 	
-	p.signal_run = NewSignal(STAMPS_RUN, p.config.UniqueId, fmt.Sprintf("stamps适配器开始运行，"+
+	p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, fmt.Sprintf("stamps适配器开始运行，"+
 	 "其UniqueId为%s,Mode为%s并且%s。",p.config.UniqueId, modeStr,timeStampStr))
 
 	p.stop =make(chan struct{})
@@ -116,11 +116,11 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 
 /** Run()必须确保不返回error、不fmt错误
  * 这些问题都要在Init()函数内实现纠错与警告
- * Run()的一切问题都通过signal的方式传递至管道
+ * Run()的一切问题都通过event的方式传递至管道
  */
 
 func (p *Stamps)Run(){
-	p.config.Signals <- p.signal_run
+	p.config.Events <- p.event_run
 
 	switch p.config.Mode{
 	case HEAD:
@@ -145,7 +145,7 @@ func (p *Stamps)Run(){
 }
 
 func (p *Stamps)ProactiveDestruct(){
-	p.config.Signals <-NewSignal(STAMPS_PROACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(STAMPS_PROACTIVEDESTRUCT,p.config.UniqueId,
 		    "注意，由于某些原因印章包主动调用了显式析构方法")
 
 	p.stop<-struct{}{}	
@@ -153,7 +153,7 @@ func (p *Stamps)ProactiveDestruct(){
 
 
 func (p *Stamps)reactiveDestruct(){
-	p.config.Signals <-NewSignal(STAMPS_REACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(STAMPS_REACTIVEDESTRUCT,p.config.UniqueId,
 		"印章包触发了隐式析构方法")
 
 	close(p.stop)
