@@ -18,21 +18,21 @@ import (
 
 /*主线程是event与error的统一管理管道*/
 var (
-    Events chan Event
+    Events  chan Event
     Errors  chan error
 )
 
 
 var (
-    rawSimulatorNews chan []byte
+    rawSimulatorNews_ByteSlice chan []byte
 
-    hbRaws           chan struct{}
+    hbRaws                     chan struct{}
 
-    crcRaws          chan []byte
-    crcPassNews      chan []byte 
-    crcNotPassNews   chan []byte// 就是stampsRaws
-    //stampsRaws       chan []byte 
-    fin_stampsNews   chan []byte   
+    crcRaws                    chan []byte
+    crcNews_Pass               chan []byte 
+    crcNews_NotPass            chan []byte// 就是stampsRaws
+    //stampsRaws               chan []byte 
+    fin_stampsNews             chan []byte   
 )
 
 func TestInit(t *testing.T) {
@@ -40,24 +40,24 @@ func TestInit(t *testing.T) {
 
 
 
-    Events = make(chan Event)
+    Events  = make(chan Event)
     Errors  = make(chan error)
     eventRecriver(t)
 
 
-    rawSimulatorNews   = make(chan []byte)
+    rawSimulatorNews_ByteSlice   = make(chan []byte)
 
     rawSimulatorAbsf   := RegisteredNodes[RAWSIMULATOR_RIVERNODE_NAME]
     rawSimulator       := rawSimulatorAbsf()
     rawSimulatorConfig := &RawSimulatorConfig{
 
-        UniqueId:       "testPkg",
-        Events:        Events,
-        //Errors:         Errors,
+        UniqueId:                   "testPkg",
+        Events:                     Events,
+        //Errors:                   Errors,
 
-        StepSec:		1 * time.Second,
+        StepSec:		            1 * time.Second,
 
- 	    News: 		    rawSimulatorNews,
+ 	    News_ByteSlice: 		    rawSimulatorNews_ByteSlice,
 
     }
 
@@ -69,37 +69,38 @@ func TestInit(t *testing.T) {
     heartBeating         := heartBeatingAbsf()
     heartBeatingConfig   := &HeartBeatingConfig{
 
-        UniqueId:       "testPkg",
-        Events:        Events,
-        Errors:         Errors,
+        UniqueId:                   "testPkg",
+        Events:                     Events,
+        Errors:                     Errors,
 
-        TimeoutSec:     3 * time.Second,
-        TimeoutLimit:   3,
-        Raws:           hbRaws,
+        TimeoutSec:                 3 * time.Second,
+        TimeoutLimit:               3,
+        Raws:                       hbRaws,
+
     }
  
 
 //-----------
 
-    crcRaws              = make(chan []byte)
-    crcPassNews          = make(chan []byte)
-    crcNotPassNews       = make(chan []byte)
+    crcRaws               = make(chan []byte)
+    crcNews_Pass          = make(chan []byte)
+    crcNews_NotPass       = make(chan []byte)
 
     crcAbsf              := RegisteredNodes[CRC_RIVERNODE_NAME]
     crc                  := crcAbsf()
     crcConfig            := &CRCConfig{
 
-        UniqueId:      "testPkg",
-        Events:       Events, /*发送给主进程的信号队列，就像Qt的信号与槽*/
-        Errors:        Errors,
+        UniqueId:                   "testPkg",
+        Events:                     Events, /*发送给主进程的信号队列，就像Qt的信号与槽*/
+        Errors:                     Errors,
 
-        Mode:          NEWCHAN,
-        IsBigEndian:   ISBIGENDDIAN,
-        NotPassLimit:  20,
-        Raws:          crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/
+        Mode:                       NEWCHAN,
+        IsBigEndian:                ISBIGENDDIAN,
+        NotPassLimit:               20,
+        Raws:                       crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/
         
-	    PassNews:      crcPassNews, /*校验通过切去掉校验码的新切片*/
-        NotPassNews:   crcNotPassNews, /*校验未通过的原始校验码*/
+	    News_Pass:                  crcNews_Pass, /*校验通过切去掉校验码的新切片*/
+        News_NotPass:               crcNews_NotPass, /*校验未通过的原始校验码*/
     } 
 
 
@@ -110,16 +111,16 @@ func TestInit(t *testing.T) {
     stamps               := stampsAbsf()
     stampsConfig         := &StampsConfig{
        
-        UniqueId:   "testPkg",
-        Events:    Events,/*发送给主进程的信号队列，就像Qt的信号与槽*/
-        Errors:     Errors,
+        UniqueId:                   "testPkg",
+        Events:                     Events,/*发送给主进程的信号队列，就像Qt的信号与槽*/
+        Errors:                     Errors,
 
-        Mode:       HEADANDTAIL, 
-        Breaking:   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
-        Stamps:     [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/          
-        Raws:       crcNotPassNews,/*从主线程发来的信号队列，就像Qt的信号与槽*/
+        Mode:                       HEADANDTAIL, 
+        Breaking:                   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
+        Stamps:                     [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/          
+        Raws:                       crcNews_NotPass,/*从主线程发来的信号队列，就像Qt的信号与槽*/
     
-        News:       fin_stampsNews,/*校验通过切去掉校验码的新切片*/
+        News:                       fin_stampsNews,/*校验通过切去掉校验码的新切片*/
     } 
 
 //--------------------
@@ -145,7 +146,7 @@ func TestInit(t *testing.T) {
     }
 
     go func(){
-        for bytes := range rawSimulatorNews{
+        for bytes := range rawSimulatorNews_ByteSlice{
             hbRaws <- struct{}{}
             /** 当crc校验包超过20次被隐式析构后
              * 同时如果主线程不进行(诸如销毁当前整体riverConn)等其他操作
@@ -163,7 +164,7 @@ func TestInit(t *testing.T) {
     }()
 
     go func(){
-        for bytes := range crcPassNews{
+        for bytes := range crcNews_Pass{
             fmt.Println("crcPassNews：",string(bytes))
         }
     }()

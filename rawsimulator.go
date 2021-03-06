@@ -16,13 +16,13 @@ const RAWSIMULATOR_RIVERNODE_NAME = "testdatacreater"
  
 
 type RawSimulatorConfig struct{
-	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
-	Events 		chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
-	//Errors 			chan error
+	UniqueId 				string	/*其所属上层Conn的唯一识别标识*/
+	Events 					chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	//Errors 				chan error
 		 
-	StepSec			time.Duration
+	StepSec					time.Duration
 
-	News 			chan []byte
+	News_ByteSlice 			chan []byte
 }
 
 func (p *RawSimulatorConfig)Name()string{
@@ -60,7 +60,7 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 		return errors.New("rawsimulator river-node init error, Events is nil")
 	}
 
-	if c.StepSec == (0 * time.Second) || c.News == nil{
+	if c.StepSec == (0 * time.Second) || c.News_ByteSlice == nil{
 		return errors.New("rawsimulator river-node init error, StepSec or News is nil")
 	}
 	
@@ -95,7 +95,7 @@ func (p *RawSimulator)Run(){
 			default:
 				if i == len(p.sourceTable){/*time.Sleep(10000*time.Second);*/i = 0}
 
-				p.config.News <- p.sourceTable[i]
+				p.config.News_ByteSlice <- p.sourceTable[i]
 	
 				time.Sleep(p.config.StepSec)
 			}
@@ -115,7 +115,7 @@ func (p *RawSimulator)reactiveDestruct(){
 	 "数据源模拟器触发了隐式析构方法")
 
 	//隐式析构的必要步骤，可触发下游river-node的析构责任链
-	close(p.config.News)
+	close(p.config.News_ByteSlice)
 	//不关闭也行,如过整体对象被销毁了无论管道里有无数据也都会被销毁，但是close也算是万无一失
 	close(p.stop) 
 }

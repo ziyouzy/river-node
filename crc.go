@@ -16,7 +16,7 @@ const CRC_RIVERNODE_NAME = "crc"
 
 type CRCConfig struct{
 	UniqueId 		  			string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
-	Events 		  			chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 		  				chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			  			chan error
 
 	Mode 			  			int /*define.READONLY或define.NEWCHAN*/
@@ -25,8 +25,8 @@ type CRCConfig struct{
 	
 	Raws 		      			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-	PassNews 		  			chan []byte /*校验通过切去掉校验码的新切片*/
-	NotPassNews 	  			chan []byte /*校验未通过的原始校验码*/
+	News_Pass 		  			chan []byte /*校验通过切去掉校验码的新切片*/
+	News_NotPass 	  			chan []byte /*校验未通过的原始校验码*/
 }
 
 
@@ -82,12 +82,12 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}
 
 
-	if c.Mode ==NEWCHAN && (c.PassNews == nil || c.NotPassNews == nil){
+	if c.Mode ==NEWCHAN && (c.News_Pass == nil || c.News_NotPass == nil){
 		return errors.New("newchan mode crc river-node init error, "+
 		             "PassNews or NotPassNews or  is nil") 
 	}
 
-	if c.Mode ==READONLY && (c.PassNews != nil || c.NotPassNews != nil){
+	if c.Mode ==READONLY && (c.News_Pass != nil || c.News_NotPass != nil){
 		return errors.New("readonly mode crc river-node init error, "+
 		             "PassNews or NotPassNews or  is not nil") 
 	}
@@ -229,8 +229,8 @@ func (p *CRC)reactiveDestruct(){
 	switch p.config.Mode{
 	case READONLY:
 	case NEWCHAN:
-		close(p.config.NotPassNews)
-		close(p.config.PassNews)
+		close(p.config.News_NotPass)
+		close(p.config.News_Pass)
 	}
 }
 
@@ -310,7 +310,7 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
-		p.config.PassNews <-p.bytesHandler.Bytes()
+		p.config.News_Pass <-p.bytesHandler.Bytes()
 
 		return true
 
@@ -326,7 +326,7 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
-		p.config.PassNews <-p.bytesHandler.Bytes()
+		p.config.News_NotPass <-p.bytesHandler.Bytes()
 
 		return true
 
@@ -338,7 +338,7 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)
-		p.config.NotPassNews <-p.bytesHandler.Bytes()
+		p.config.News_NotPass <-p.bytesHandler.Bytes()
 
 		return true
 	}else{
@@ -349,7 +349,7 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(mb)
-		p.config.NotPassNews <- p.bytesHandler.Bytes()
+		p.config.News_NotPass <- p.bytesHandler.Bytes()
 
 		p.config.Events <- p.event_fused
 		return false
