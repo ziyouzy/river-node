@@ -6,7 +6,6 @@ import(
 
 func NewError(code int, uniqueid string, commit string)error{
 	if uniqueid ==""&&code ==0 {
-		//fmt.error
 		return nil
 	}
 	

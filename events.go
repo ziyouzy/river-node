@@ -45,7 +45,6 @@ const (
 
 func NewEvent(code int, uniqueid string, commit string) Event{
 	if uniqueid ==""&&code ==0 {
-		//fmt.error
 		return nil
 	}
 
