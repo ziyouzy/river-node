@@ -20,7 +20,7 @@ type CRCConfig struct{
 	Events 		  				chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			  			chan error
 
-	Mode 			  			int /*define.READONLY或define.NEWCHAN*/
+	Mode 			  			int /*define.READONLY或define.NEWCHAN或ADDTAIL*/
 	IsBigEndian 	  			bool
 	NotPassLimit      			int
 	
@@ -388,9 +388,6 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 
 //为传入的字节切片末尾添加校验位(ADDTAIL)
 func (p *CRC)addTail(raw []byte){
-	fmt.Println(raw)
-	fmt.Println(p.checkCRC16(raw, p.config.IsBigEndian))
-
 	raw = append(raw,p.checkCRC16(raw, p.config.IsBigEndian)...)
 
 	p.bytesHandler.Reset()
