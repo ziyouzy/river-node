@@ -115,7 +115,7 @@ func TestInit(t *testing.T) {
         Events:                     Events,/*发送给主进程的信号队列，就像Qt的信号与槽*/
         Errors:                     Errors,
 
-        Mode:                       HEADANDTAIL, 
+        Mode:                       HEADSANDTAILS, 
         Breaking:                   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
         Stamps:                     [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/          
         Raws:                       crcNews_NotPass,/*从主线程发来的信号队列，就像Qt的信号与槽*/

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"errors"
 	"encoding/binary"
+	//"encoding/hex"
 )
 
 
@@ -27,6 +28,7 @@ type CRCConfig struct{
 
 	News_Pass 		  			chan []byte /*校验通过切去掉校验码的新切片*/
 	News_NotPass 	  			chan []byte /*校验未通过的原始校验码*/
+	News_AddTail				chan []byte
 }
 
 
@@ -77,19 +79,24 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 		return errors.New("crc river_node init error, Raws or NotPassLimit is nil")
 	}
 
-	if c.Mode != NEWCHAN&&c.Mode != READONLY {
+	if c.Mode != NEWCHAN&&c.Mode != READONLY&&c.Mode != ADDTAIL {
 		return errors.New("crc river-node init error, unknown mode") 
 	}
 
 
 	if c.Mode ==NEWCHAN && (c.News_Pass == nil || c.News_NotPass == nil){
 		return errors.New("newchan mode crc river-node init error, "+
-		             "PassNews or NotPassNews or  is nil") 
+		             "News_Pass or News_NotPass is nil") 
 	}
 
 	if c.Mode ==READONLY && (c.News_Pass != nil || c.News_NotPass != nil){
 		return errors.New("readonly mode crc river-node init error, "+
-		             "PassNews or NotPassNews or  is not nil") 
+		             "News_Pass or News_NotPass is not nil") 
+	}
+
+	if c.Mode ==ADDTAIL && c.News_AddTail ==nil{
+		return errors.New("tail mode crc river-node init error, "+
+		             "News_Tail is not nil") 
 	}
 
 	
@@ -146,13 +153,22 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 	if p.config.Mode == READONLY{
 		modeStr ="只判断是否校验通过，只将结果通过Events管道返回给上层(READONLY)"
+		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
+			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
+			   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
 	}else if p.config.Mode == NEWCHAN{
 		modeStr ="不仅仅判断是否校验通过，并为通过与未通过校验的数据分别创建新的管道(NEWCHAN)"
+		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
+			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
+			   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
+	}else if p.config.Mode == ADDTAIL{
+		modeStr ="为传入的字节切片末尾添加校验位(ADDTAIL)"
+		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
+			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, Mode为:%s,"+
+			   "大小端模式为:%s",p.config.UniqueId, modeStr, endianStr))
 	}
 	
-	p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
-		fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
-		   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
+	
 
 
 	p.stop =make(chan struct{})
@@ -198,7 +214,21 @@ func (p *CRC)Run(){
 				}
 			}
 		}()
+	case ADDTAIL:
+		go func(){
+			defer p.reactiveDestruct()
+			for {
+				select{
+				case raw, ok := <-p.config.Raws:
+					if !ok{ return }
+					p.addTail(raw)
+				case <-p.stop:
+					return
+				}
+			}
+		}()
 	}
+
 }
 
 /**
@@ -356,6 +386,17 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 	}
 }
 
+//为传入的字节切片末尾添加校验位(ADDTAIL)
+func (p *CRC)addTail(raw []byte){
+	fmt.Println(raw)
+	fmt.Println(p.checkCRC16(raw, p.config.IsBigEndian))
+
+	raw = append(raw,p.checkCRC16(raw, p.config.IsBigEndian)...)
+
+	p.bytesHandler.Reset()
+	p.bytesHandler.Write(raw)
+	p.config.News_AddTail <- p.bytesHandler.Bytes()
+}
 //拆分需要验证的modbus码，拆分后会共享原始切片(mb)的底层数组
 //不可以对两个返回值做任何直接的修改操作
 func (p *CRC)midModbus(mb []byte) ([]byte, []byte){
@@ -373,7 +414,7 @@ func (p *CRC)checkCRC16(data []byte, isBigEndian bool) []byte {
 		crc16 >>= 8
 		crc16 ^= p.mbTable[n]
 	}
-
+	
 	
 	if isBigEndian{
 		p.bytesHandler.Reset()

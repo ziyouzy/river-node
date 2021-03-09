@@ -16,8 +16,8 @@ type StampsConfig struct{
 	UniqueId 	    string	/*其所属上层Conn的唯一识别标识*/
 	Events 	    chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 		    chan error
-	/** 分为三种，HEAD、TAIL、HEADANDTAIL
-	 * 当是HEADANDTAIL模式，切len(stamp)>1时
+	/** 分为三种，HEADS、TAILS、HEADSANDTAILS
+	 * 当是HEADANDTAILS模式，切len(stamp)>1时
 	 * 按照如下顺序拼接：
 	 * stamp1+raw(首部);raw+stamp2(尾部);stamp3+raw(首部);raw+stamp4(尾部);stamp5+raw(首部);....
 	 * 这样的首尾交替规律的拼接方式
@@ -73,11 +73,11 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		return errors.New("stamps river-node init error, Raws or News is nil")
 	}
 
-	if c.Mode != HEADANDTAIL && c.Mode != HEAD && c.Mode != TAIL{
+	if c.Mode != HEADSANDTAILS && c.Mode != HEADS && c.Mode != TAILS{
 		return errors.New("stamps river-node init error, unknown mode")
 	}
 	
-	if c.Mode == HEADANDTAIL && len(c.Stamps)<2{
+	if c.Mode == HEADSANDTAILS && len(c.Stamps)<2{
 		return errors.New("stamps river-node init error, mode is headandtail but only one stamp")
 	}
 
@@ -85,7 +85,7 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
-	if(p.config.Mode == HEADANDTAIL) { p.tailHandler = bytes.NewBuffer([]byte{}) } 
+	if(p.config.Mode == HEADSANDTAILS) { p.tailHandler = bytes.NewBuffer([]byte{}) } 
 
 
 	timeStampStr :=""
@@ -97,11 +97,11 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		timeStampStr = "会首先自动添加时间戳"
 	}
 
-	if p.config.Mode == HEAD{
+	if p.config.Mode == HEADS{
 		modeStr ="将某个或某些印章戳添加于数据头部"
-	}else if p.config.Mode == TAIL{
+	}else if p.config.Mode == TAILS{
 		modeStr ="将某个或某些印章戳添加于数据尾部"
-	}else if p.config.Mode == HEADANDTAIL{
+	}else if p.config.Mode == HEADSANDTAILS{
 		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
 	}
 	
@@ -123,19 +123,19 @@ func (p *Stamps)Run(){
 	p.config.Events <- p.event_run
 
 	switch p.config.Mode{
-	case HEAD:
+	case HEADS:
 		go func(){
 			for raw := range p.config.Raws{
 				p.stampToHead(raw)
 			}
 		}()
-	case TAIL:
+	case TAILS:
 		go func(){
 			for raw := range p.config.Raws{
 				p.stampToTail(raw)
 			}
 		}()
-	case HEADANDTAIL:
+	case HEADSANDTAILS:
 		go func(){
 			for raw := range p.config.Raws{
 				p.stampToHeadAndTail(raw)

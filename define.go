@@ -13,13 +13,14 @@ const (
 const (
 	READONLY = iota
 	NEWCHAN
+	ADDTAIL
 )
 //crc end
 
 //stamps
 const (
-	HEAD = iota
-	TAIL
-	HEADANDTAIL
+	HEADS = iota
+	TAILS
+	HEADSANDTAILS
 )
 //stamps end
