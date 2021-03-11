@@ -356,7 +356,7 @@ func (p *CRC)newChanCheck(mb []byte) bool{
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)//通过crc校验则阉割掉后两位校验位
-		p.config.News_NotPass <-p.bytesHandler.Bytes()
+		p.config.News_Pass <-p.bytesHandler.Bytes()
 
 		return true
 
