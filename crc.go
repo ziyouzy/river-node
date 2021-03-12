@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"errors"
 	"encoding/binary"
-	//"encoding/hex"
+	"encoding/hex"
 )
 
 
@@ -20,14 +20,17 @@ type CRCConfig struct{
 	Events 		  				chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			  			chan error
 
-	Mode 			  			int /*define.READONLY或define.NEWCHAN或ADDTAIL*/
-	IsBigEndian 	  			bool
-	NotPassLimit      			int
+	Mode 			  			int /*define.FILTER或ADDTAIL*/
+	Encoding 	  			    bool
+
+	FilterStartIndex			int
+	FilterNotPassLimit      	int
+	FilterMinLen                int
+
 	
 	Raws 		      			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	News_Pass 		  			chan []byte /*校验通过切去掉校验码的新切片*/
-	News_NotPass 	  			chan []byte /*校验未通过的原始校验码*/
 	News_AddTail				chan []byte
 }
 
@@ -71,32 +74,25 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 		return errors.New("crc river_node init error, uniqueId is nil")
 	}
 
-	if c.Events == nil || c.Errors == nil{
-		return errors.New("crc river_node init error, Events or Errors is nil")
+	if c.Events == nil || c.Errors == nil || c.Raws == nil{
+		return errors.New("crc river_node init error, Events or Errors or Raws is nil")
 	}
 
-	if c.Raws == nil || c.NotPassLimit ==0{
-		return errors.New("crc river_node init error, Raws or NotPassLimit is nil")
-	}
 
-	if c.Mode != NEWCHAN&&c.Mode != READONLY&&c.Mode != ADDTAIL {
+	if c.Mode != FILTER&&c.Mode != ADDTAIL {
 		return errors.New("crc river-node init error, unknown mode") 
 	}
 
 
-	if c.Mode ==NEWCHAN && (c.News_Pass == nil || c.News_NotPass == nil){
-		return errors.New("newchan mode crc river-node init error, "+
-		             "News_Pass or News_NotPass is nil") 
+	/*而FilterStartIndex允许为0且默认为0*/
+	if c.Mode ==FILTER && (c.News_Pass == nil || c.FilterNotPassLimit ==0 || c.FilterMinLen ==0){
+		return errors.New("filter mode crc river-node init error, "+
+		             "News_Pass or FilterNotPassLimit or FilterMinLen is nil") 
 	}
 
-	if c.Mode ==READONLY && (c.News_Pass != nil || c.News_NotPass != nil){
-		return errors.New("readonly mode crc river-node init error, "+
-		             "News_Pass or News_NotPass is not nil") 
-	}
 
 	if c.Mode ==ADDTAIL && c.News_AddTail ==nil{
-		return errors.New("tail mode crc river-node init error, "+
-		             "News_Tail is not nil") 
+		return errors.New("tail mode crc river-node init error, News_Tail is nil") 
 	}
 
 	
@@ -138,37 +134,32 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
-	p.event_upsidedown = NewEvent(CRC_UPSIDEDOWN, c.UniqueId, "")
+	p.event_upsidedown  = NewEvent(CRC_UPSIDEDOWN, c.UniqueId, "")
 	p.event_fused 	  	= NewEvent(CRC_FUSED, c.UniqueId, "")
 
 
 	endianStr := ""
 	modeStr   := ""
 
-	if p.config.IsBigEndian{
+	if p.config.Encoding ==BIGENDDIAN{
 		endianStr ="大端模式"
 	}else{
 		endianStr ="小端模式"
 	}
 
-	if p.config.Mode == READONLY{
-		modeStr ="只判断是否校验通过，只将结果通过Events管道返回给上层(READONLY)"
+	if p.config.Mode == FILTER{
+		modeStr ="crc校验模式，将通过的结果注入News_Pass管道，不通过的进行转化并注入Errors管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
 			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
-			   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
-	}else if p.config.Mode == NEWCHAN{
-		modeStr ="不仅仅判断是否校验通过，并为通过与未通过校验的数据分别创建新的管道(NEWCHAN)"
-		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
-			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
-			   "大小端模式为:%s",p.config.UniqueId, p.config.NotPassLimit, modeStr, endianStr))
+			   "大小端模式为:%s，校验起始下标为:%d",p.config.UniqueId, p.config.FilterNotPassLimit, 
+			   modeStr, endianStr,p.config.FilterStartIndex))
+
 	}else if p.config.Mode == ADDTAIL{
-		modeStr ="为传入的字节切片末尾添加校验位(ADDTAIL)"
+		modeStr ="追加crc校验码模式，将追加后生成的modbus码注入News_AddTail管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
-			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, Mode为:%s,"+
-			   "大小端模式为:%s",p.config.UniqueId, modeStr, endianStr))
+			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, Mode为:%s,大小端模式为:%s",
+			   p.config.UniqueId, modeStr, endianStr))
 	}
-	
-	
 
 
 	p.stop =make(chan struct{})
@@ -181,34 +172,15 @@ func (p *CRC)Run(){
 
 	p.config.Events <- p.event_run
 
-
-	/** 
-	 * 如下为Run()的核心，也就是注入数据的操作环节
-	 * 或者说是对数据源的使用环节
-	 * 当Raws被关闭后，至少系统中的数据流动框架会立刻回归到Construct()时的状态
-	 */
 	switch p.config.Mode{
-	case READONLY:
+	case FILTER:
 		go func(){
 			defer p.reactiveDestruct()
 			for {
 				select{
 				case mb, ok := <-p.config.Raws:
 					if !ok{ return }
-					if !p.readOnlyCheck(mb){ return }
-				case <-p.stop:
-					return
-				}
-			}
-		}()
-	case NEWCHAN:
-		go func(){
-			defer p.reactiveDestruct()
-			for {
-				select{
-				case mb, ok := <-p.config.Raws:
-					if !ok{ return }
-					if !p.newChanCheck(mb){ return }
+					p.filter(mb)
 				case <-p.stop:
 					return
 				}
@@ -231,20 +203,9 @@ func (p *CRC)Run(){
 
 }
 
-/**
- * 基于：
- * “无论怎样都不应该在消费端关闭channel,因为在消费端无法判断生产端是否还会向通道中发送元素值”
- * 的设计思路，ProactiveDestruct()的存在是不合理的
- */
-//主动 - proactive
-//主动析构并不会主动触发Raws管道的关闭，具体请参考heartbeating适配器
-//但是也一定要慎重使用
 func (p *CRC)ProactiveDestruct(){
 	p.config.Events <-NewEvent(CRC_PROACTIVEDESTRUCT,p.config.UniqueId,
 	 "注意，由于某些原因CRC校验包主动调用了显式析构方法")
-	/**
-	 * 析构数据源,析构后Run()内部会自动触发下面的reactiveDestruct()方法
-	 */
 	p.stop<-struct{}{}
 	
 }
@@ -256,11 +217,12 @@ func (p *CRC)reactiveDestruct(){
 
 	//析构数据源
 	close(p.stop)
+
 	switch p.config.Mode{
-	case READONLY:
-	case NEWCHAN:
-		close(p.config.News_NotPass)
+	case FILTER:
 		close(p.config.News_Pass)
+	case ADDTAIL:
+		close(p.config.News_AddTail)
 	}
 }
 
@@ -277,123 +239,84 @@ func init() {
 }
 
 
+func (p *CRC)filter(mb []byte){
+	if len(mb) < p.config.FilterMinLen{
+		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
+			fmt.Sprintf("待验证的modbus码不足所设定的最少位数：%d位，问题校验码的16进制字符串为：%s",
+			   p.config.FilterMinLen,hex.EncodeToString(mb)))
+		return
+	}
 
+	raw,crc := p.midModbus(mb) 
+
+	if bytes.Equal(p.checkCRC16(raw[p.config.FilterStartIndex:], p.config.Encoding), crc){
+		if p.countor != 0{
+			p.countor = 0
+			p.config.Events <- NewEvent(CRC_RECOVERED,p.config.UniqueId,
+					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
+					   p.countor,p.config.FilterNotPassLimit))
+		}
+
+		p.bytesHandler.Reset()
+		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
+		p.config.News_Pass <-p.bytesHandler.Bytes()
+
+	}else if bytes.Equal(p.checkCRC16(raw[p.config.FilterStartIndex:], !p.config.Encoding),crc){
+		if p.countor != 0{
+			p.countor = 0
+			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,
+					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
+					   "但是当前这一字节数组存在大小端颠倒的问题",p.countor,p.config.FilterNotPassLimit))
+		}
+
+		p.config.Events <- p.event_upsidedown
+
+		p.bytesHandler.Reset()
+		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
+		p.config.News_Pass <-p.bytesHandler.Bytes()
+
+	}else if p.countor < p.config.FilterNotPassLimit{
+		p.countor++
+		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
+				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d,"+
+				   "问题校验码的16进制字符串为：%s",p.countor,p.config.FilterNotPassLimit,
+				   hex.EncodeToString(mb)))
+
+		// 未通过校验的数据(错误数据)不再放入任何管道
+	}else{
+		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
+				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
+				"次数为%d,问题校验码的16进制字符串为：%s",p.countor,p.config.FilterNotPassLimit, 
+				hex.EncodeToString(mb)))
+		p.countor =0
+
+		// 未通过校验的数据(错误数据)不再放入任何管道)
+
+		p.config.Events <- p.event_fused
+	}
+}
+
+//为传入的字节切片末尾添加校验位(ADDTAIL)
+func (p *CRC)addTail(raw []byte){
+	var tail []byte
+	if tail = p.checkCRC16(raw, p.config.Encoding); tail ==nil{
+		p.config.Errors <-NewError(CRC_NULLTAIL,p.config.UniqueId, 
+						fmt.Sprintf("ADDTAIL模式的CRC校验器生成了空的校验码,问题校验码"+
+						   "的16进制字符串为：%s",hex.EncodeToString(raw)))
+		return
+	}
+
+	raw = append(raw,tail...)
+	p.bytesHandler.Reset()
+	p.bytesHandler.Write(raw)
+	p.config.News_AddTail <- p.bytesHandler.Bytes()
+}
 
 
 /*------------以下是所需的功能方法-------------*/
 
 
 
-//验证一个需要验证的modbus码
-func (p *CRC)readOnlyCheck(mb []byte) bool { 
-
-	raw,crc := p.midModbus(mb) 
-
-	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		if p.countor != 0{ 
-			p.countor = 0
-			p.config.Events <- NewEvent(CRC_RECOVERED,p.config.UniqueId,
-					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
-					   p.countor,p.config.NotPassLimit))
-		}
-
-		return true
-	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		if p.countor != 0{
-			p.countor = 0
-			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,
-					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
-					   "但是当前这一字节数组存在大小端颠倒的问题",p.countor,p.config.NotPassLimit))
-		}
-
-		//无论countor是否为0都会返回upsidedown信号
-		p.config.Events <- p.event_upsidedown
-		return true
-
-	}else if p.countor < p.config.NotPassLimit{
-		p.countor++
-		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
-				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
-				   p.countor,p.config.NotPassLimit))
-		return true
-	}else{
-		p.config.Errors <- NewError(CRC_FUSED,p.config.UniqueId, 
-				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-				   "次数为%d",p.countor,p.config.NotPassLimit))
-		p.countor =0
-		p.config.Events <- p.event_fused
-		return false
-	}
-}
-
-//验证并生成一个全新的切片变量并放入newchan管道中，这个全新的切片的底层数组也是全新的
-func (p *CRC)newChanCheck(mb []byte) bool{
-	raw,crc := p.midModbus(mb) 
-
-	if bytes.Equal(p.checkCRC16(raw, p.config.IsBigEndian), crc){
-		if p.countor != 0{
-			p.countor = 0
-			p.config.Events <- NewEvent(CRC_RECOVERED,p.config.UniqueId,
-					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
-					   p.countor,p.config.NotPassLimit))
-		}
-
-		p.bytesHandler.Reset()
-		p.bytesHandler.Write(raw)//通过crc校验则阉割掉后两位校验位
-		p.config.News_Pass <-p.bytesHandler.Bytes()
-
-		return true
-
-	}else if bytes.Equal(p.checkCRC16(raw, !p.config.IsBigEndian),crc){
-		if p.countor != 0{
-			p.countor = 0
-			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,
-					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
-					   "但是当前这一字节数组存在大小端颠倒的问题",p.countor,p.config.NotPassLimit))
-		}
-
-		p.config.Events <- p.event_upsidedown
-
-		p.bytesHandler.Reset()
-		p.bytesHandler.Write(raw)//通过crc校验则阉割掉后两位校验位
-		p.config.News_Pass <-p.bytesHandler.Bytes()
-
-		return true
-
-	}else if p.countor < p.config.NotPassLimit{
-		p.countor++
-		p.config.Errors <-NewError(CRC_NOTPASS,p.config.UniqueId, 
-				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",p.countor,
-				   p.config.NotPassLimit))
-
-		p.bytesHandler.Reset()
-		p.bytesHandler.Write(mb)//未通过crc校验则保留后两位校验位
-		p.config.News_NotPass <-p.bytesHandler.Bytes()
-
-		return true
-	}else{
-		p.config.Errors <-NewError(CRC_FUSED,p.config.UniqueId, 
-				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-				   "次数为%d",p.countor,p.config.NotPassLimit))
-		p.countor =0
-
-		p.bytesHandler.Reset()
-		p.bytesHandler.Write(mb)//未通过crc校验则保留后两位校验位
-		p.config.News_NotPass <- p.bytesHandler.Bytes()
-
-		p.config.Events <- p.event_fused
-		return false
-	}
-}
-
-//为传入的字节切片末尾添加校验位(ADDTAIL)
-func (p *CRC)addTail(raw []byte){
-	raw = append(raw,p.checkCRC16(raw, p.config.IsBigEndian)...)
-
-	p.bytesHandler.Reset()
-	p.bytesHandler.Write(raw)
-	p.config.News_AddTail <- p.bytesHandler.Bytes()
-}
 //拆分需要验证的modbus码，拆分后会共享原始切片(mb)的底层数组
 //不可以对两个返回值做任何直接的修改操作
 func (p *CRC)midModbus(mb []byte) ([]byte, []byte){
@@ -403,7 +326,7 @@ func (p *CRC)midModbus(mb []byte) ([]byte, []byte){
 
 
 //计算出某个字节数组的crc16校验码
-func (p *CRC)checkCRC16(data []byte, isBigEndian bool) []byte {
+func (p *CRC)checkCRC16(data []byte, Endian bool) []byte {
 	var crc16 uint16 = 0xffff
 
 	for _, v := range data {
@@ -413,7 +336,7 @@ func (p *CRC)checkCRC16(data []byte, isBigEndian bool) []byte {
 	}
 	
 	
-	if isBigEndian{
+	if Endian == BIGENDDIAN{
 		p.bytesHandler.Reset()
 		binary.Write(p.bytesHandler, binary.BigEndian, &crc16)
 	}else{

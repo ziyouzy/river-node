@@ -94,13 +94,15 @@ func TestInit(t *testing.T) {
         Events:                     Events, /*发送给主进程的信号队列，就像Qt的信号与槽*/
         Errors:                     Errors,
 
-        Mode:                       NEWCHAN,
-        IsBigEndian:                ISBIGENDDIAN,
-        NotPassLimit:               20,
+        Mode:                       FILTER,
+        Encoding:                   BIGENDDIAN,
+        FilterNotPassLimit:         20,
+        FilterStartIndex:           0,
+        FilterMinLen:               4, 
         Raws:                       crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/
         
 	    News_Pass:                  crcNews_Pass, /*校验通过切去掉校验码的新切片*/
-        News_NotPass:               crcNews_NotPass, /*校验未通过的原始校验码*/
+        //News_AddTail:               
     } 
 
 

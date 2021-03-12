@@ -71,8 +71,9 @@ func TestInit(t *testing.T) {
         Errors:                     Errors,
 
         Mode:                       ADDTAIL,
-        IsBigEndian:                ISBIGENDDIAN,
-        NotPassLimit:               20,
+        Encoding:                   BIGENDDIAN,
+        //FilterNotPassLimit:         20,
+        //FilterStartIndex:           4,
         Raws:                       rawSimulatorNews_ByteSlice, /*从主线程发来的信号队列，就像Qt的信号与槽*/
         
 	    News_AddTail:            	crcNews_AddTail,

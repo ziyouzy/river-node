@@ -6,13 +6,12 @@ const (
 )
 //crc
 const (
-	ISBIGENDDIAN = true
-	ISLITTLEENDDIAN = false
+	BIGENDDIAN = true
+	LITTLEENDDIAN = false
 )
 
 const (
-	READONLY = iota
-	NEWCHAN
+	FILTER = iota
 	ADDTAIL
 )
 //crc end
