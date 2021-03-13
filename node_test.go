@@ -24,28 +24,18 @@ var (
 
 
 var (
-    rawSimulatorNews_ByteSlice chan []byte
-
     hbRaws                     chan struct{}
-
     crcRaws                    chan []byte
-    crcNews_Pass               chan []byte 
-    crcNews_NotPass            chan []byte// 就是stampsRaws
-    //stampsRaws               chan []byte 
-    fin_stampsNews             chan []byte   
 )
 
 func TestInit(t *testing.T) {
     defer logger.Destory()
 
-
-
     Events  = make(chan Event)
     Errors  = make(chan error)
     eventRecriver(t)
-
-
-    rawSimulatorNews_ByteSlice   = make(chan []byte)
+    
+//-----------
 
     rawSimulatorAbsf   := RegisteredNodes[RAWSIMULATOR_RIVERNODE_NAME]
     rawSimulator       := rawSimulatorAbsf()
@@ -56,15 +46,16 @@ func TestInit(t *testing.T) {
         //Errors:                   Errors,
 
         StepSec:		            1 * time.Second,
-
- 	    News_ByteSlice: 		    rawSimulatorNews_ByteSlice,
-
     }
 
+    if err := rawSimulator.Construct(rawSimulatorConfig); err != nil {
+        logger.Info("test rawSimulator-river-node init fail:"+err.Error())
+        panic("rawSimulator fail")
+    }
 
 //-----------
-    hbRaws               = make(chan struct{})
 
+    hbRaws               = make(chan struct{})
     heartBeatingAbsf     := RegisteredNodes[HB_RIVERNODE_NAME]
     heartBeating         := heartBeatingAbsf()
     heartBeatingConfig   := &HeartBeatingConfig{
@@ -78,14 +69,14 @@ func TestInit(t *testing.T) {
         Raws:                       hbRaws,
 
     }
- 
+
+    if err := heartBeating.Construct(heartBeatingConfig); err != nil {
+        logger.Info("test heartbeating-river-node init fail:"+err.Error())
+        panic("test heartbeating fail")
+    } 
 
 //-----------
-
-    crcRaws               = make(chan []byte)
-    crcNews_Pass          = make(chan []byte)
-    crcNews_NotPass       = make(chan []byte)
-
+    crcRaws              = make(chan []byte)
     crcAbsf              := RegisteredNodes[CRC_RIVERNODE_NAME]
     crc                  := crcAbsf()
     crcConfig            := &CRCConfig{
@@ -99,15 +90,23 @@ func TestInit(t *testing.T) {
         FilterNotPassLimit:         20,
         FilterStartIndex:           0,
         FilterMinLen:               4, 
-        Raws:                       crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/
-        
-	    News_Pass:                  crcNews_Pass, /*校验通过切去掉校验码的新切片*/
-        //News_AddTail:               
-    } 
 
+        Raws:                       crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/               
+    }
+
+    if err := crc.Construct(crcConfig); err != nil {
+        logger.Info("test crc-river-node init fail:"+err.Error())
+        panic("test crc fail")
+    }else{
+        go func(){
+            for bytes := range rawSimulatorConfig.News_ByteSlice{
+                hbRaws <- struct{}{}
+                crcRaws <- bytes
+            }
+        }()
+    }
 
 //----------
-    fin_stampsNews       = make(chan []byte)
 
     stampsAbsf           := RegisteredNodes[STAMPS_RIVERNODE_NAME]
     stamps               := stampsAbsf()
@@ -120,56 +119,26 @@ func TestInit(t *testing.T) {
         Mode:                       HEADSANDTAILS, 
         Breaking:                   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
         Stamps:                     [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/          
-        Raws:                       crcNews_NotPass,/*从主线程发来的信号队列，就像Qt的信号与槽*/
-    
-        News:                       fin_stampsNews,/*校验通过切去掉校验码的新切片*/
+       
+        Raws:                       crcRaws,/*从主线程发来的信号队列，就像Qt的信号与槽*/
     } 
-
-//--------------------
 
     if err := stamps.Construct(stampsConfig); err != nil {
         logger.Info("test stamps-river-node init fail:"+err.Error())
         panic("test stamps fail")
-    }
- 
-    if err := crc.Construct(crcConfig); err != nil {
-        logger.Info("test crc-river-node init fail:"+err.Error())
-        panic("test crc fail")
-    }
-
-    if err := heartBeating.Construct(heartBeatingConfig); err != nil {
-        logger.Info("test heartbeating-river-node init fail:"+err.Error())
-        panic("test heartbeating fail")
+    }else{
+        go func(){
+            for bytes := range stampsConfig.News{
+                fmt.Println("fin_stampsNew：",string(bytes))
+            }
+        }()
     }
 
-    if err := rawSimulator.Construct(rawSimulatorConfig); err != nil {
-        logger.Info("test rawSimulator-river-node init fail:"+err.Error())
-        panic("rawSimulator fail")
-    }
+//--------------------
 
-    go func(){
-        for bytes := range rawSimulatorNews_ByteSlice{
-            hbRaws <- struct{}{}
-            /** 当crc校验包超过20次被隐式析构后
-             * 同时如果主线程不进行(诸如销毁当前整体riverConn)等其他操作
-             * 整体就会在这里卡死，因为此刻
-             * crcRaws在没有什么会消费他了
-             */
-            crcRaws <- bytes
-        }
-    }()
 
-    go func(){
-        for bytes := range fin_stampsNews{
-            fmt.Println("fin_stampsNew：",string(bytes))
-        }
-    }()
 
-    go func(){
-        for bytes := range crcNews_Pass{
-            fmt.Println("crcPassNews：",string(bytes))
-        }
-    }()
+
       
     stamps.Run()
     crc.Run()

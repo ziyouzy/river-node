@@ -26,7 +26,7 @@ type StampsConfig struct{
 	AutoTimeStamp	bool
 	Breaking 	    []byte /*戳与数据间的分隔符，可以为nil*/
 	Stamps 		    [][]byte /*允许输入多个，会按顺序依次拼接*/
-	Raws 		    chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Raws 		    <-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	News 		    chan []byte /*校验通过切去掉校验码的新切片*/
 }
@@ -42,7 +42,7 @@ type Stamps struct{
 	tailHandler		*bytes.Buffer
 	config 			*StampsConfig
 
-	event_run      Event
+	event_run     	Event
 
 	stop			chan struct{}
 }
@@ -69,8 +69,8 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		return errors.New("stamps river-node init error, Events or Errors is nil")
 	}
 
-	if c.Raws == nil || c.News ==nil{
-		return errors.New("stamps river-node init error, Raws or News is nil")
+	if c.Raws == nil || c.News !=nil{
+		return errors.New("stamps river-node init error, Raws is nil or News is not nil")
 	}
 
 	if c.Mode != HEADSANDTAILS && c.Mode != HEADS && c.Mode != TAILS{
@@ -108,16 +108,12 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 	p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, fmt.Sprintf("stamps适配器开始运行，"+
 	 "其UniqueId为%s,Mode为%s并且%s。",p.config.UniqueId, modeStr,timeStampStr))
 
-	p.stop =make(chan struct{})
+	p.config.News		=make(chan []byte)
+	p.stop		=make(chan struct{})
 
 	return nil
 }
 
-
-/** Run()必须确保不返回error、不fmt错误
- * 这些问题都要在Init()函数内实现纠错与警告
- * Run()的一切问题都通过event的方式传递至管道
- */
 
 func (p *Stamps)Run(){
 	p.config.Events <- p.event_run
@@ -156,7 +152,8 @@ func (p *Stamps)reactiveDestruct(){
 	p.config.Events <-NewEvent(STAMPS_REACTIVEDESTRUCT,p.config.UniqueId,
 		"印章包触发了隐式析构方法")
 
-	close(p.stop)
+	close(p.stop)	
+	close(p.config.News)
 }
 
 

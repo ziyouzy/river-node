@@ -33,7 +33,7 @@ type RawSimulator struct{
 	sourceTable					[][]byte     
 	config 						*RawSimulatorConfig
 
-	rawsimulator_event_run 	Event
+	rawsimulator_event_run 		Event
 	stop                		chan struct{} 
 }
 
@@ -60,8 +60,8 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 		return errors.New("rawsimulator river-node init error, Events is nil")
 	}
 
-	if c.StepSec == (0 * time.Second) || c.News_ByteSlice == nil{
-		return errors.New("rawsimulator river-node init error, StepSec or News is nil")
+	if c.StepSec == (0 * time.Second) || c.News_ByteSlice != nil{
+		return errors.New("rawsimulator river-node init error, StepSec or News is not nil")
 	}
 	
 	
@@ -80,7 +80,8 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 	p.rawsimulator_event_run = NewEvent(RAWSIMULATOR_RUN,p.config.UniqueId,
 	 "开始借助package testdatacreater进行测试，此包的作用是将一个临时的[]byte数据源river-node化")
 
-	p.stop =make(chan struct{})
+	p.config.News_ByteSlice		= make(chan []byte)
+	p.stop						= make(chan struct{})
 	
 	return nil
 }
@@ -119,9 +120,7 @@ func (p *RawSimulator)reactiveDestruct(){
 	p.config.Events <-NewEvent(RAWSIMULATOR_REACTIVEDESTRUCT,p.config.UniqueId,
 	 "数据源模拟器触发了隐式析构方法")
 
-	//隐式析构的必要步骤，可触发下游river-node的析构责任链
 	close(p.config.News_ByteSlice)
-	//不关闭也行,如过整体对象被销毁了无论管道里有无数据也都会被销毁，但是close也算是万无一失
 	close(p.stop) 
 }
 

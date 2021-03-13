@@ -18,12 +18,6 @@ var (
 )
 
 
-var (
-    rawSimulatorNews_ByteSlice    chan []byte
-
-    crcNews_AddTail               chan []byte   
-)
-
 func TestInit(t *testing.T) {
     defer logger.Destory()
 
@@ -44,7 +38,6 @@ func TestInit(t *testing.T) {
 		}
 	}()
 
-    rawSimulatorNews_ByteSlice   = make(chan []byte)
     rawSimulatorAbsf   := RegisteredNodes[RAWSIMULATOR_RIVERNODE_NAME]
     rawSimulator       := rawSimulatorAbsf()
     rawSimulatorConfig := &RawSimulatorConfig{
@@ -54,13 +47,14 @@ func TestInit(t *testing.T) {
         //Errors:                   Errors,
 
         StepSec:		            1 * time.Second,
-
- 	    News_ByteSlice: 		    rawSimulatorNews_ByteSlice,
-
     } 
 
+    if err := rawSimulator.Construct(rawSimulatorConfig); err != nil {
+		logger.Info("test rawSimulator-river-node init fail:"+err.Error())
+		panic("rawSimulator fail")
+	}
+
 //-----------
-	crcNews_AddTail      = make(chan []byte)
 
     crcAbsf              := RegisteredNodes[CRC_RIVERNODE_NAME]
     crc                  := crcAbsf()
@@ -74,33 +68,24 @@ func TestInit(t *testing.T) {
         Encoding:                   BIGENDDIAN,
         //FilterNotPassLimit:         20,
         //FilterStartIndex:           4,
-        Raws:                       rawSimulatorNews_ByteSlice, /*从主线程发来的信号队列，就像Qt的信号与槽*/
-        
-	    News_AddTail:            	crcNews_AddTail,
+        Raws:                       rawSimulatorConfig.News_ByteSlice, /*从主线程发来的信号队列，就像Qt的信号与槽*/
     } 
-
-//-----------
-
-	if err := rawSimulator.Construct(rawSimulatorConfig); err != nil {
-		logger.Info("test rawSimulator-river-node init fail:"+err.Error())
-		panic("rawSimulator fail")
-	}
 
 	if err := crc.Construct(crcConfig); err != nil {
 		logger.Info("test crc-river-node init fail:"+err.Error())
 		panic("test crc fail")
-	}
-
-//----------
-
-    go func(){
-        for byteslice := range crcNews_AddTail{
-            fmt.Println("with tail：",hex.EncodeToString(byteslice))
-        }
-    }()
-      
-    rawSimulator.Run()
+	}else{
+        go func(){
+            for byteslice := range crcConfig.News_AddTail{
+                fmt.Println("with tail：",hex.EncodeToString(byteslice))
+            }
+        }()
+    }
+//------
+//------
+//------
     crc.Run()
+    rawSimulator.Run()
 
     select{}
 }

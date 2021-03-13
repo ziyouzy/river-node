@@ -28,7 +28,7 @@ type CRCConfig struct{
 	FilterMinLen                int
 
 	
-	Raws 		      			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Raws 		      			<-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	News_Pass 		  			chan []byte /*校验通过切去掉校验码的新切片*/
 	News_AddTail				chan []byte
@@ -78,23 +78,22 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 		return errors.New("crc river_node init error, Events or Errors or Raws is nil")
 	}
 
+	if c.News_Pass != nil || c.News_AddTail != nil{
+		return errors.New("river-node init error, News_Pass or News_AddTail is not nil")
+	}
+
 
 	if c.Mode != FILTER&&c.Mode != ADDTAIL {
 		return errors.New("crc river-node init error, unknown mode") 
 	}
 
-
-	/*而FilterStartIndex允许为0且默认为0*/
-	if c.Mode ==FILTER && (c.News_Pass == nil || c.FilterNotPassLimit ==0 || c.FilterMinLen ==0){
+	
+	if c.Mode ==FILTER && (c.FilterNotPassLimit ==0 || c.FilterMinLen ==0){
 		return errors.New("filter mode crc river-node init error, "+
 		             "News_Pass or FilterNotPassLimit or FilterMinLen is nil") 
 	}
 
-
-	if c.Mode ==ADDTAIL && c.News_AddTail ==nil{
-		return errors.New("tail mode crc river-node init error, News_Tail is nil") 
-	}
-
+	/*FilterStartIndex允许为0且默认为0*/
 	
 	p.config = c
 
@@ -154,15 +153,18 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 			   "大小端模式为:%s，校验起始下标为:%d",p.config.UniqueId, p.config.FilterNotPassLimit, 
 			   modeStr, endianStr,p.config.FilterStartIndex))
 
+		p.config.News_Pass 		= make(chan []byte)
+
 	}else if p.config.Mode == ADDTAIL{
 		modeStr ="追加crc校验码模式，将追加后生成的modbus码注入News_AddTail管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,
 			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, Mode为:%s,大小端模式为:%s",
 			   p.config.UniqueId, modeStr, endianStr))
+
+		p.config.News_AddTail 		= make(chan []byte)
 	}
 
-
-	p.stop =make(chan struct{})
+	p.stop 				= make(chan struct{})
 
 	return nil
 }
@@ -213,7 +215,8 @@ func (p *CRC)ProactiveDestruct(){
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *CRC)reactiveDestruct(){
-	p.config.Events <-NewEvent(CRC_REACTIVEDESTRUCT,p.config.UniqueId,"CRC校验包触发了隐式析构方法")
+	p.config.Events <-NewEvent(CRC_REACTIVEDESTRUCT,p.config.UniqueId,
+		            "CRC校验包触发了隐式析构方法")
 
 	//析构数据源
 	close(p.stop)

@@ -19,7 +19,7 @@ const HB_RIVERNODE_NAME = "heartbeating"
 
 type HeartBeatingConfig struct{
 	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
-	Events 		chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 			chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			chan error
 
 	/** 虽然是面向[]byte的适配器，但是并不需要[]byte做任何操作
@@ -29,7 +29,8 @@ type HeartBeatingConfig struct{
 
 	TimeoutSec 		time.Duration
 	TimeoutLimit    int
-	Raws 			chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
+
+	Raws 			<-chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
 		 
 	//News 此包不会生成新的管道数据
 }
@@ -80,8 +81,6 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 		return errors.New("heartbeating river-node init error, "+
 					 "Raws or Events or Errors Raws is nil")
 	}
-
-	
 	
 	p.config = c
 
@@ -98,31 +97,13 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 
 
 
-/** Run()必须确保不返回error、不fmt错误
-
- * 这些问题都要在Init()函数内实现纠错与警告
- * 如发生了错误(非异常)则需要本包自行解决，而不能通过singal借助上层完成
- */
-
-
 func (p *HeartBeating)Run(){
 	p.config.Events <- p.event_run
 
-	//并没有这个必要，心跳包只会发生销毁事件和再创建，不会发生重置事件
-	// if p.timer ==nil{		  
-	// 	p.timer = time.NewTimer(p.config.TimeoutSec)
-	// }else{
-	// 	p.timer.Reset(p.config.TimeoutSec)
-	// 	p.config.Events <- hb_event_rebuild
-	// }
 	p.timer = time.NewTimer(p.config.TimeoutSec)
 
 	go func(){
 		defer p.reactiveDestruct()
-		/** 
-		 * 析构的时候此循环不会因p.Raws的close而退出(注意close并不代表p.Raws==nil)
-		 * 因此需要设计独立的stop管道分支，分支的唯一作用是执行reactiveDestruct()跳出循环
-		 */
 		for {
 			select {
 			//心跳包超时
@@ -152,7 +133,7 @@ func (p *HeartBeating)Run(){
 
 			//心跳包未超时
 			case _, ok :=<-p.config.Raws:
-				if !ok { fmt.Println("hb close"); return }
+				if !ok { return }
 				/*Reset一个timer前必须先正确的关闭它*/
 				if p.timer.Stop() == STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
@@ -178,20 +159,7 @@ func (p *HeartBeating)Run(){
 }
 
 
-/** 
- * 对于上层逻辑来说，进行p.Raws的关闭操作后此包就会检测到关闭的操作
- * 从而隐式进行reactiveDestruct()
-
- * 真的主动执行他的话，p.Raws就会没法被消费了
- * 上层逻辑是会被卡主的,一定要慎用
- * 而且似乎现在这个项目也根本就用不到他，不过还是先设计出来吧
- */
 func (p *HeartBeating)ProactiveDestruct(){
-	/**
-	 * 析构数据源,析构后Run()内部会自动触发下面的reactiveDestruct()方法
-	 */
-	//不应为其设计主动析构逻辑，因为Raws的关闭一定需要在外层进行
-	//close(p.config.Raws)
 	p.config.Events <-NewEvent(HEARTBREATING_PROACTIVEDESTRUCT,p.config.UniqueId,
 		    "注意，由于某些原因心跳包主动调用了显式析构方法")
 
@@ -201,15 +169,6 @@ func (p *HeartBeating)ProactiveDestruct(){
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *HeartBeating)reactiveDestruct(){
-	//必须执行Stop(),他和关闭一个io一样是必须的，否则timer内可能会存在携程泄露
-
-	// if p.timer.Stop() == STOPAFTEREXPIRE{ 
-	// 	_ = <-p.timer.C 
-	// 	p.config.Errors <-NewError(HEARTBREATING_TIMERLIMITED,p.config.UniqueId,
-	// 			fmt.Sprintf("heartbeating适配器发生了“计时器未超时下的数据临界事件”,"+
-	// 			   "计时器自身的管道已正常排空，uid为%s",p.config.UniqueId)) 
-	// }
-
 	//析构操作在前，管道内就算有新事件也不需要了
 	p.config.Events <-NewEvent(HEARTBREATING_REACTIVEDESTRUCT,p.config.UniqueId,
 		  	"心跳包触发了隐式析构方法")
