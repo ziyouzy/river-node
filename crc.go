@@ -22,16 +22,16 @@ type CRCConfig struct{
 
 	Mode 			  			int /*define.FILTER或ADDTAIL*/
 	Encoding 	  			    bool
-
-	FilterStartIndex			int
-	FilterNotPassLimit      	int
-	FilterMinLen                int
-
 	
 	Raws 		      			<-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-	News_Pass 		  			chan []byte /*校验通过切去掉校验码的新切片*/
 	News_AddTail				chan []byte
+	//----------
+	FilterStartIndex			int
+	FilterNotPassLimit      	int
+	FilterMinLen                int
+	News_Filter 		  		chan []byte /*校验通过切去掉校验码的新切片*/
+
 }
 
 

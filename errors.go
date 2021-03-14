@@ -4,22 +4,24 @@ import(
 	"fmt"
 )
 
-func NewError(code int, uniqueid string, commit string)error{
+func NewError(code int, uniqueid string, dataToString string, commit string)error{
 	if uniqueid ==""&&code ==0 {
 		return nil
 	}
 	
 	err :=&event{
-		UniqueId: 	uniqueid,
 		Code: 		code,
+		UniqueId: 	uniqueid,
+		Data:		dataToString,
 		Commit:		commit,
 	}
+
 	return err	
 }
 
 /*让event也实现golang内置接口error，从而让他也变成一个error*/
 func (p *event)Error() (s string) {
-	_, _, conststring, commit  := p.Description()
+	_, _, codeToString, dataToString, commit  := p.Description()
 	
 	if commit ==""{
 		s = fmt.Sprintf("river-node error: UniqueId: %s, Error: %s",

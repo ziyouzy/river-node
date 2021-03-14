@@ -120,7 +120,7 @@ func TestInit(t *testing.T) {
         Breaking:                   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
         Stamps:                     [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/          
        
-        Raws:                       crcRaws,/*从主线程发来的信号队列，就像Qt的信号与槽*/
+        Raws:                       crcConfig.News_Pass,/*从主线程发来的信号队列，就像Qt的信号与槽*/
     } 
 
     if err := stamps.Construct(stampsConfig); err != nil {

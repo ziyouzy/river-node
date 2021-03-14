@@ -44,7 +44,7 @@ const (
 )
 
 
-func NewEvent(code int, uniqueid string, commit string) Event{
+func NewEvent(code int, uniqueId string, dataToString string, commit string) Event{
 	if uniqueid ==""&&code ==0 {
 		return nil
 	}
@@ -52,13 +52,14 @@ func NewEvent(code int, uniqueid string, commit string) Event{
 	eve :=&event{
 		UniqueId: 	uniqueid,
 		Code: 		code,
+		Data:		dataToString,
 		Commit:		commit,
 	}
 	return eve
 }
 
 type Event interface{
-	Description()(string, int, string, string)
+	Description()(string, int, string, string, string)
 }
 
 
@@ -66,66 +67,68 @@ type Event interface{
 type event struct{
 	UniqueId string
 	Code 	 int
+	Data	 string
 	Commit 	 string
 }
 
 
-func (p *event)Description()(uniqueid string, code int, conststring string, commit string){
-	uniqueid = p.UniqueId;	code = p.Code;	commit =p.Commit
+func (p *event)Description()(uniqueId string, code int, codeToString string, dataToString string, commit string){
+	uniqueId = p.UniqueId;		dataToString = p.Data;		commit = p.Commit
 
+	code = p.Code
 	switch code{
 	case RAWSIMULATOR_RUN:
-		conststring = "RAWSIMULATOR_RUN"
+		codeToString = "RAWSIMULATOR_RUN"
 	case RAWSIMULATOR_REACTIVEDESTRUCT:
-		conststring = "RAWSIMULATOR_REACTIVEDESTRUCT"
+		codeToString = "RAWSIMULATOR_REACTIVEDESTRUCT"
 	case RAWSIMULATOR_PROACTIVEDESTRUCT:
-		conststring = "RAWSIMULATOR_PROACTIVEDESTRUCT"
+		codeToString = "RAWSIMULATOR_PROACTIVEDESTRUCT"
 
 	case HEARTBREATING_RUN:
-		conststring = "HEARTBREATING_RUN" 
+		codeToString = "HEARTBREATING_RUN" 
 	case HEARTBREATING_RECOVERED:
-		conststring = "HEARTBREATING_RECOVERED"
+		codeToString = "HEARTBREATING_RECOVERED"
 	case HEARTBREATING_TIMEOUT:
-		conststring = "HEARTBREATING_TIMEOUT"
+		codeToString = "HEARTBREATING_TIMEOUT"
 	case HEARTBREATING_TIMERLIMITED:
-		conststring = "HEARTBREATING_TIMERLIMITED"
+		codeToString = "HEARTBREATING_TIMERLIMITED"
 	case HEARTBREATING_FUSED:
-		conststring = "HEARTBREATING_FUSED"
+		codeToString = "HEARTBREATING_FUSED"
 	case HEARTBREATING_REACTIVEDESTRUCT:
-		conststring = "HEARTBREATING_REACTIVEDESTRUCT"
+		codeToString = "HEARTBREATING_REACTIVEDESTRUCT"
 	case HEARTBREATING_PROACTIVEDESTRUCT:
-		conststring = "HEARTBREATING_PROACTIVEDESTRUCT"
+		codeToString = "HEARTBREATING_PROACTIVEDESTRUCT"
 
 	case CRC_RUN:
-		conststring = "CRC_RUN"
+		codeToString = "CRC_RUN"
 	case CRC_UPSIDEDOWN:
-		conststring = "CRC_UPSIDEDOWN"
+		codeToString = "CRC_UPSIDEDOWN"
 	case CRC_NOTPASS:
-		conststring = "CRC_NOTPASS"
+		codeToString = "CRC_NOTPASS"
 	case CRC_RECOVERED:
-		conststring = "CRC_RECOVERED"
+		codeToString = "CRC_RECOVERED"
 	case CRC_FUSED:
-		conststring = "CRC_FUSED"
+		codeToString = "CRC_FUSED"
 	case CRC_REACTIVEDESTRUCT:
-		conststring = "CRC_REACTIVEDESTRUCT"
+		codeToString = "CRC_REACTIVEDESTRUCT"
 	case CRC_PROACTIVEDESTRUCT:
-		conststring = "CRC_PROACTIVEDESTRUCT"
+		codeToString = "CRC_PROACTIVEDESTRUCT"
 
 	case STAMPS_RUN:
-		conststring = "STAMPS_RUN"
+		codeToString = "STAMPS_RUN"
 	case STAMPS_REACTIVEDESTRUCT:
-		conststring = "STAMPS_REACTIVEDESTRUCT"
+		codeToString = "STAMPS_REACTIVEDESTRUCT"
 	case STAMPS_PROACTIVEDESTRUCT:
-		conststring = "STAMPS_PROACTIVEDESTRUCT"
+		codeToString = "STAMPS_PROACTIVEDESTRUCT"
 
 	case ANOTHEREXAMPLE_TEST1:
-		conststring ="ANOTHEREXAMPLE_TEST1"
+		codeToString ="ANOTHEREXAMPLE_TEST1"
 	case ANOTHEREXAMPLE_TEST2:
-		conststring ="ANOTHEREXAMPLE_TEST2"
+		codeToString ="ANOTHEREXAMPLE_TEST2"
 	case ANOTHEREXAMPLE_TEST3:
-		conststring ="ANOTHEREXAMPLE_TEST3"
+		codeToString ="ANOTHEREXAMPLE_TEST3"
 	case ANOTHEREXAMPLE_ERR:
-		conststring ="ANOTHEREXAMPLE_ERR"
+		codeToString ="ANOTHEREXAMPLE_ERR"
 	}
 
 	return 
