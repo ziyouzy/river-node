@@ -7,7 +7,7 @@
 package river_node
 
 import(
-//	"fmt"
+	"fmt"
 )
 
 const (
@@ -44,13 +44,21 @@ const (
 )
 
 
-func NewEvent(code int, uniqueId string, dataToString string, commit string) Event{
-	if uniqueid ==""&&code ==0 {
-		return nil
+func NewEvent(code int, uniqueId string, dataToString string, commit string) RN_event{
+	if uniqueId =="" && code ==0 { return nil }
+
+	if dataToString == "" {
+		dataToString = "N/A"
+	} else {
+		commit = fmt.Sprintf("[Data not N/A] %s", commit)
 	}
 
-	eve :=&event{
-		UniqueId: 	uniqueid,
+	if commit == "" {
+		commit = "N/A"
+	}
+
+	eve :=&rn_event{
+		UniqueId: 	uniqueId,
 		Code: 		code,
 		Data:		dataToString,
 		Commit:		commit,
@@ -58,13 +66,14 @@ func NewEvent(code int, uniqueId string, dataToString string, commit string) Eve
 	return eve
 }
 
-type Event interface{
-	Description()(string, int, string, string, string)
+type RN_event interface{
+	CodeString()string
+	Description()(string,string,string,string)
 }
 
 
 
-type event struct{
+type rn_event struct{
 	UniqueId string
 	Code 	 int
 	Data	 string
@@ -72,65 +81,67 @@ type event struct{
 }
 
 
-func (p *event)Description()(uniqueId string, code int, codeToString string, dataToString string, commit string){
-	uniqueId = p.UniqueId;		dataToString = p.Data;		commit = p.Commit
-
-	code = p.Code
-	switch code{
+func (p *rn_event)CodeString()string{
+	switch p.Code{
 	case RAWSIMULATOR_RUN:
-		codeToString = "RAWSIMULATOR_RUN"
+		return "RAWSIMULATOR_RUN"
 	case RAWSIMULATOR_REACTIVEDESTRUCT:
-		codeToString = "RAWSIMULATOR_REACTIVEDESTRUCT"
+		return "RAWSIMULATOR_REACTIVEDESTRUCT"
 	case RAWSIMULATOR_PROACTIVEDESTRUCT:
-		codeToString = "RAWSIMULATOR_PROACTIVEDESTRUCT"
+		return "RAWSIMULATOR_PROACTIVEDESTRUCT"
 
 	case HEARTBREATING_RUN:
-		codeToString = "HEARTBREATING_RUN" 
+		return "HEARTBREATING_RUN" 
 	case HEARTBREATING_RECOVERED:
-		codeToString = "HEARTBREATING_RECOVERED"
+		return "HEARTBREATING_RECOVERED"
 	case HEARTBREATING_TIMEOUT:
-		codeToString = "HEARTBREATING_TIMEOUT"
+		return "HEARTBREATING_TIMEOUT"
 	case HEARTBREATING_TIMERLIMITED:
-		codeToString = "HEARTBREATING_TIMERLIMITED"
+		return "HEARTBREATING_TIMERLIMITED"
 	case HEARTBREATING_FUSED:
-		codeToString = "HEARTBREATING_FUSED"
+		return "HEARTBREATING_FUSED"
 	case HEARTBREATING_REACTIVEDESTRUCT:
-		codeToString = "HEARTBREATING_REACTIVEDESTRUCT"
+		return "HEARTBREATING_REACTIVEDESTRUCT"
 	case HEARTBREATING_PROACTIVEDESTRUCT:
-		codeToString = "HEARTBREATING_PROACTIVEDESTRUCT"
+		return "HEARTBREATING_PROACTIVEDESTRUCT"
 
 	case CRC_RUN:
-		codeToString = "CRC_RUN"
+		return "CRC_RUN"
 	case CRC_UPSIDEDOWN:
-		codeToString = "CRC_UPSIDEDOWN"
+		return "CRC_UPSIDEDOWN"
 	case CRC_NOTPASS:
-		codeToString = "CRC_NOTPASS"
+		return "CRC_NOTPASS"
 	case CRC_RECOVERED:
-		codeToString = "CRC_RECOVERED"
+		return "CRC_RECOVERED"
 	case CRC_FUSED:
-		codeToString = "CRC_FUSED"
+		return "CRC_FUSED"
 	case CRC_REACTIVEDESTRUCT:
-		codeToString = "CRC_REACTIVEDESTRUCT"
+		return "CRC_REACTIVEDESTRUCT"
 	case CRC_PROACTIVEDESTRUCT:
-		codeToString = "CRC_PROACTIVEDESTRUCT"
+		return "CRC_PROACTIVEDESTRUCT"
 
 	case STAMPS_RUN:
-		codeToString = "STAMPS_RUN"
+		return "STAMPS_RUN"
 	case STAMPS_REACTIVEDESTRUCT:
-		codeToString = "STAMPS_REACTIVEDESTRUCT"
+		return "STAMPS_REACTIVEDESTRUCT"
 	case STAMPS_PROACTIVEDESTRUCT:
-		codeToString = "STAMPS_PROACTIVEDESTRUCT"
+		return "STAMPS_PROACTIVEDESTRUCT"
 
 	case ANOTHEREXAMPLE_TEST1:
-		codeToString ="ANOTHEREXAMPLE_TEST1"
+		return "ANOTHEREXAMPLE_TEST1"
 	case ANOTHEREXAMPLE_TEST2:
-		codeToString ="ANOTHEREXAMPLE_TEST2"
+		return "ANOTHEREXAMPLE_TEST2"
 	case ANOTHEREXAMPLE_TEST3:
-		codeToString ="ANOTHEREXAMPLE_TEST3"
+		return "ANOTHEREXAMPLE_TEST3"
 	case ANOTHEREXAMPLE_ERR:
-		codeToString ="ANOTHEREXAMPLE_ERR"
+		return "ANOTHEREXAMPLE_ERR"
+	default:
+		return "UNKNOWN_DEFINE"
 	}
+}
 
-	return 
+
+func (p *rn_event)Description()(string,string,string,string){
+	return p.CodeString(), p.UniqueId, p.Data, p.Commit
 }
 

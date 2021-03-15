@@ -4,31 +4,17 @@ import(
 	"fmt"
 )
 
-func NewError(code int, uniqueid string, dataToString string, commit string)error{
-	if uniqueid ==""&&code ==0 {
-		return nil
-	}
-	
-	err :=&event{
-		Code: 		code,
-		UniqueId: 	uniqueid,
-		Data:		dataToString,
-		Commit:		commit,
-	}
-
-	return err	
+func NewError(code int, uniqueId string, dataToString string, commit string)error{
+	return &rn_error{ NewEvent(code, uniqueId, dataToString, commit) }	
 }
 
+type rn_error struct{
+	RN_event
+} 
+
 /*让event也实现golang内置接口error，从而让他也变成一个error*/
-func (p *event)Error() (s string) {
-	_, _, codeToString, dataToString, commit  := p.Description()
-	
-	if commit ==""{
-		s = fmt.Sprintf("river-node error: UniqueId: %s, Error: %s",
-						p.UniqueId, conststring)
-	}else{
-		s = fmt.Sprintf("river-node error: UniqueId: %s, Error: %s, Commit: %s",
-						p.UniqueId, conststring, commit)
-	}
-	return
+func (p *rn_error)Error() string {
+	cs, uid, data, commit := p.Description()
+	return fmt.Sprintf("[ERROR] CodeString: %s, UniqueId: %s, DataString: %s, Commit: %s",
+			  cs, uid, data, commit)
 }

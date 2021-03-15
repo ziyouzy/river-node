@@ -17,7 +17,7 @@ const RAWSIMULATOR_RIVERNODE_NAME = "testdatacreater"
 
 type RawSimulatorConfig struct{
 	UniqueId 				string	/*其所属上层Conn的唯一识别标识*/
-	Events 					chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 					chan RN_event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	//Errors 				chan error
 		 
 	StepSec					time.Duration
@@ -33,7 +33,7 @@ type RawSimulator struct{
 	sourceTable					[][]byte     
 	config 						*RawSimulatorConfig
 
-	rawsimulator_event_run 		Event
+	rawsimulator_event_run 		RN_event
 	stop                		chan struct{} 
 }
 
@@ -77,7 +77,7 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 	p.sourceTable =	[][]byte{{0xF1,0x01,0x00,0x00,0x00,0x08,0x29,0x3C},
 		{0xF1,0x02,0x00,0x20,0x00,0x08,0x6C,0xF6},}
 
-	p.rawsimulator_event_run = NewEvent(RAWSIMULATOR_RUN,p.config.UniqueId,
+	p.rawsimulator_event_run = NewEvent(RAWSIMULATOR_RUN,p.config.UniqueId,"",
 	 "开始借助package testdatacreater进行测试，此包的作用是将一个临时的[]byte数据源river-node化")
 
 	p.config.News_ByteSlice		= make(chan []byte)
@@ -111,13 +111,13 @@ func (p *RawSimulator)Run(){
 
 //作为数据源，这个方法到时有很多合理的使用场景
 func (p *RawSimulator)ProactiveDestruct(){
-	p.config.Events <-NewEvent(RAWSIMULATOR_PROACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(RAWSIMULATOR_PROACTIVEDESTRUCT,p.config.UniqueId,"",
 	 "注意，由于某些原因数据源模拟器主动调用了显式析构方法")
 	p.stop <-struct{}{}
 }
 
 func (p *RawSimulator)reactiveDestruct(){
-	p.config.Events <-NewEvent(RAWSIMULATOR_REACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(RAWSIMULATOR_REACTIVEDESTRUCT,p.config.UniqueId,"",
 	 "数据源模拟器触发了隐式析构方法")
 
 	close(p.config.News_ByteSlice)

@@ -18,7 +18,7 @@ import (
 
 /*主线程是event与error的统一管理管道*/
 var (
-    Events  chan Event
+    Events  chan RN_event
     Errors  chan error
 )
 
@@ -31,7 +31,7 @@ var (
 func TestInit(t *testing.T) {
     defer logger.Destory()
 
-    Events  = make(chan Event)
+    Events  = make(chan RN_event)
     Errors  = make(chan error)
     eventRecriver(t)
     
@@ -120,7 +120,7 @@ func TestInit(t *testing.T) {
         Breaking:                   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
         Stamps:                     [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/          
        
-        Raws:                       crcConfig.News_Pass,/*从主线程发来的信号队列，就像Qt的信号与槽*/
+        Raws:                       crcConfig.News_Filter,/*从主线程发来的信号队列，就像Qt的信号与槽*/
     } 
 
     if err := stamps.Construct(stampsConfig); err != nil {
@@ -164,7 +164,7 @@ func eventRecriver(t *testing.T){
             select{
             case eve := <-Events:
                 /*最重要的是，触发某个事件后，接下来去做什么*/
-                uniqueid, code, detail, _:= eve.Description()
+                cs := eve.CodeString()
                 //fmt.Println("uniqueid, code, detail-",uniqueid, code, detail)
                 switch code{
                 case RAWSIMULATOR_RUN:

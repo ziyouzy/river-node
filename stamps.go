@@ -14,7 +14,7 @@ const STAMPS_RIVERNODE_NAME = "stamps"
 
 type StampsConfig struct{
 	UniqueId 	    string	/*其所属上层Conn的唯一识别标识*/
-	Events 	    chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 	    	chan RN_event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 		    chan error
 	/** 分为三种，HEADS、TAILS、HEADSANDTAILS
 	 * 当是HEADANDTAILS模式，切len(stamp)>1时
@@ -42,7 +42,7 @@ type Stamps struct{
 	tailHandler		*bytes.Buffer
 	config 			*StampsConfig
 
-	event_run     	Event
+	event_run     	RN_event
 
 	stop			chan struct{}
 }
@@ -105,8 +105,9 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
 	}
 	
-	p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, fmt.Sprintf("stamps适配器开始运行，"+
-	 "其UniqueId为%s,Mode为%s并且%s。",p.config.UniqueId, modeStr,timeStampStr))
+	p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("stamps适配器"+
+				  "开始运行，其UniqueId为%s,Mode为%s并且%s。",p.config.UniqueId, 
+				  modeStr,timeStampStr))
 
 	p.config.News		=make(chan []byte)
 	p.stop		=make(chan struct{})
@@ -141,7 +142,7 @@ func (p *Stamps)Run(){
 }
 
 func (p *Stamps)ProactiveDestruct(){
-	p.config.Events <-NewEvent(STAMPS_PROACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(STAMPS_PROACTIVEDESTRUCT,p.config.UniqueId,"",
 		    "注意，由于某些原因印章包主动调用了显式析构方法")
 
 	p.stop<-struct{}{}	
@@ -149,7 +150,7 @@ func (p *Stamps)ProactiveDestruct(){
 
 
 func (p *Stamps)reactiveDestruct(){
-	p.config.Events <-NewEvent(STAMPS_REACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(STAMPS_REACTIVEDESTRUCT,p.config.UniqueId,"",
 		"印章包触发了隐式析构方法")
 
 	close(p.stop)	

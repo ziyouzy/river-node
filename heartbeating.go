@@ -19,7 +19,7 @@ const HB_RIVERNODE_NAME = "heartbeating"
 
 type HeartBeatingConfig struct{
 	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
-	Events 			chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 			chan RN_event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			chan error
 
 	/** 虽然是面向[]byte的适配器，但是并不需要[]byte做任何操作
@@ -51,8 +51,8 @@ type HeartBeating struct{
 	timeout_countor 	int
 
 	countor 			int
-	event_run 			Event
-	event_fused 		Event
+	event_run 			RN_event
+	event_fused 		RN_event
 
 	stop 				chan struct{}
 }
@@ -84,11 +84,11 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 	
 	p.config = c
 
-	p.event_run = NewEvent(HEARTBREATING_RUN,p.config.UniqueId,
+	p.event_run = NewEvent(HEARTBREATING_RUN,p.config.UniqueId,"",
 	 fmt.Sprintf("heartbeating适配器开始运行，其UniqueId为%s, 最大超时秒数为%d, "+
 		"最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
 		p.config.UniqueId, p.config.TimeoutSec, p.config.TimeoutLimit))
-	p.event_fused = NewEvent(HEARTBREATING_FUSED,c.UniqueId, "")
+	p.event_fused = NewEvent(HEARTBREATING_FUSED,c.UniqueId, "","")
 
 	p.stop =make(chan struct{})
 	
@@ -111,7 +111,7 @@ func (p *HeartBeating)Run(){
 				/*必须先检查一下Raws内部是否还存在数据*/				
 				if len(p.config.Raws)>0{
 					_ = <-p.config.Raws
-					p.config.Errors <-NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,
+					p.config.Errors <-NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
 							fmt.Sprintf("heartbeating适配器发生了“计时器超时下的数据临界事件“,"+
 							   "Raws管道已正常排空，uid为%s",p.config.UniqueId)) 
 				}
@@ -119,11 +119,11 @@ func (p *HeartBeating)Run(){
 				if p.countor < p.config.TimeoutLimit{
 					p.timer.Reset(p.config.TimeoutSec)
 					p.countor++
-					p.config.Errors <- NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,
+					p.config.Errors <- NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
 						    fmt.Sprintf("连续第%d次超时，当前系统设定的最大超时次数为%d",
 						       p.countor,p.config.TimeoutLimit))
 				}else{
-					p.config.Errors <-NewError(HEARTBREATING_FUSED,p.config.UniqueId,
+					p.config.Errors <-NewError(HEARTBREATING_FUSED,p.config.UniqueId,"",
 							fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，系统设定的最大超时"+
 							   "次数为%d",p.countor,p.config.TimeoutLimit))
 					p.countor =0
@@ -137,14 +137,14 @@ func (p *HeartBeating)Run(){
 				/*Reset一个timer前必须先正确的关闭它*/
 				if p.timer.Stop() == STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
-					p.config.Errors <-NewError(HEARTBREATING_TIMERLIMITED,p.config.UniqueId,
+					p.config.Errors <-NewError(HEARTBREATING_TIMERLIMITED,p.config.UniqueId,"",
 							fmt.Sprintf("heartbeating适配器发生了“计时器未超时下的数据临界事件”,"+
 							   "计时器自身的管道已正常排空，uid为%s",p.config.UniqueId)) 
 				}
 				
 				if p.countor != 0{
 					p.countor =0
-					p.config.Events <-NewEvent(HEARTBREATING_RECOVERED,p.config.UniqueId,
+					p.config.Events <-NewEvent(HEARTBREATING_RECOVERED,p.config.UniqueId,"",
 						    fmt.Sprintf("已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
 							   p.countor,p.config.TimeoutLimit))
 				}
@@ -160,7 +160,7 @@ func (p *HeartBeating)Run(){
 
 
 func (p *HeartBeating)ProactiveDestruct(){
-	p.config.Events <-NewEvent(HEARTBREATING_PROACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(HEARTBREATING_PROACTIVEDESTRUCT,p.config.UniqueId,"",
 		    "注意，由于某些原因心跳包主动调用了显式析构方法")
 
 	p.stop<-struct{}{}	
@@ -170,7 +170,7 @@ func (p *HeartBeating)ProactiveDestruct(){
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *HeartBeating)reactiveDestruct(){
 	//析构操作在前，管道内就算有新事件也不需要了
-	p.config.Events <-NewEvent(HEARTBREATING_REACTIVEDESTRUCT,p.config.UniqueId,
+	p.config.Events <-NewEvent(HEARTBREATING_REACTIVEDESTRUCT,p.config.UniqueId,"",
 		  	"心跳包触发了隐式析构方法")
 	_ = p.timer.Stop()
 	close(p.stop)
