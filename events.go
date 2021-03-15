@@ -58,31 +58,35 @@ func NewEvent(code int, uniqueId string, dataToString string, commit string) RN_
 	}
 
 	eve :=&rn_event{
-		UniqueId: 	uniqueId,
-		Code: 		code,
-		Data:		dataToString,
-		Commit:		commit,
+		uniqueId: 	uniqueId,
+		code: 		code,
+		data:		dataToString,
+		commit:		commit,
 	}
 	return eve
 }
 
 type RN_event interface{
 	CodeString()string
-	Description()(string,string,string,string)
+	Code() int
+	Description()(int, string,string,string,string)
 }
 
 
 
 type rn_event struct{
-	UniqueId string
-	Code 	 int
-	Data	 string
-	Commit 	 string
+	uniqueId string
+	code 	 int
+	data	 string
+	commit 	 string
 }
 
+func (p *rn_event)Code()int{
+	return p.code
+}
 
 func (p *rn_event)CodeString()string{
-	switch p.Code{
+	switch p.Code(){
 	case RAWSIMULATOR_RUN:
 		return "RAWSIMULATOR_RUN"
 	case RAWSIMULATOR_REACTIVEDESTRUCT:
@@ -141,7 +145,7 @@ func (p *rn_event)CodeString()string{
 }
 
 
-func (p *rn_event)Description()(string,string,string,string){
-	return p.CodeString(), p.UniqueId, p.Data, p.Commit
+func (p *rn_event)Description()(int, string, string, string, string){
+	return p.Code(), p.CodeString(), p.uniqueId, p.data, p.commit
 }
 
