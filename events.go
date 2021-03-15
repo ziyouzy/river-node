@@ -43,8 +43,14 @@ const (
 	RAWSIMULATOR_PROACTIVEDESTRUCT
 )
 
+type Event interface{
+	CodeString()string
+	Code() int
+	Description()(int, string,string,string,string)
+	ToError() error
+}
 
-func NewEvent(code int, uniqueId string, dataToString string, commit string) RN_event{
+func NewEvent(code int, uniqueId string, dataToString string, commit string) Event{
 	if uniqueId =="" && code ==0 { return nil }
 
 	if dataToString == "" {
@@ -57,35 +63,28 @@ func NewEvent(code int, uniqueId string, dataToString string, commit string) RN_
 		commit = "N/A"
 	}
 
-	eve :=&rn_event{
+	e :=&eve{
 		uniqueId: 	uniqueId,
 		code: 		code,
 		data:		dataToString,
 		commit:		commit,
 	}
-	return eve
-}
-
-type RN_event interface{
-	CodeString()string
-	Code() int
-	Description()(int, string,string,string,string)
+	return e
 }
 
 
-
-type rn_event struct{
+type eve struct{
 	uniqueId string
 	code 	 int
 	data	 string
 	commit 	 string
 }
 
-func (p *rn_event)Code()int{
+func (p *eve)Code()int{
 	return p.code
 }
 
-func (p *rn_event)CodeString()string{
+func (p *eve)CodeString()string{
 	switch p.Code(){
 	case RAWSIMULATOR_RUN:
 		return "RAWSIMULATOR_RUN"
@@ -144,8 +143,23 @@ func (p *rn_event)CodeString()string{
 	}
 }
 
-
-func (p *rn_event)Description()(int, string, string, string, string){
+func (p *eve)Description()(int, string, string, string, string){
 	return p.Code(), p.CodeString(), p.uniqueId, p.data, p.commit
 }
 
+func (p *eve)ToError()error{
+	return &err{p}
+}
+
+//------------
+
+
+type err struct{
+	Event
+} 
+
+func (p *err)Error() string {
+	c, cs, uid, data, commit := p.Event.Description()
+	return fmt.Sprintf("[ERROR] Code: %d, CodeString: %s, UniqueId: %s, DataString: %s, "+
+			  "Commit: %s", c, cs, uid, data, commit)
+}

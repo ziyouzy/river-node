@@ -18,7 +18,7 @@ import (
 
 /*主线程是event与error的统一管理管道*/
 var (
-    Events  chan RN_event
+    Events  chan Event
     Errors  chan error
 )
 
@@ -31,7 +31,7 @@ var (
 func TestInit(t *testing.T) {
     defer logger.Destory()
 
-    Events  = make(chan RN_event)
+    Events  = make(chan Event)
     Errors  = make(chan error)
     eventRecriver(t)
     
@@ -167,6 +167,7 @@ func eventRecriver(t *testing.T){
                 fmt.Println("Recriver-event:",eve.CodeString())
                 c, cs, uid, data, commit :=eve.Description() 
                 fmt.Println("Recriver-event-details:", c, cs, uid, data, commit)
+                fmt.Println("Recriver-event-toError:",eve.ToError().Error()) 
             case err := <-Errors:
                 fmt.Println("Recriver-error:",err.Error())
                 //实战中这里会进行日志的记录

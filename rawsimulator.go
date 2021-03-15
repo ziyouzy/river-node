@@ -17,7 +17,7 @@ const RAWSIMULATOR_RIVERNODE_NAME = "testdatacreater"
 
 type RawSimulatorConfig struct{
 	UniqueId 				string	/*其所属上层Conn的唯一识别标识*/
-	Events 					chan RN_event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Events 					chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	//Errors 				chan error
 		 
 	StepSec					time.Duration
@@ -33,7 +33,7 @@ type RawSimulator struct{
 	sourceTable					[][]byte     
 	config 						*RawSimulatorConfig
 
-	rawsimulator_event_run 		RN_event
+	rawsimulator_event_run 		Event
 	stop                		chan struct{} 
 }
 
