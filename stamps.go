@@ -117,7 +117,7 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 
 
 func (p *Stamps)Run(){
-	p.config.Events <- p.event_run
+	p.config.Events <-p.event_run
 
 	switch p.config.Mode{
 	case HEADS:

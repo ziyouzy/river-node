@@ -164,55 +164,11 @@ func eventRecriver(t *testing.T){
             select{
             case eve := <-Events:
                 /*最重要的是，触发某个事件后，接下来去做什么*/
-                cs := eve.CodeString()
-                //fmt.Println("uniqueid, code, detail-",uniqueid, code, detail)
-                switch code{
-                case RAWSIMULATOR_RUN:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case RAWSIMULATOR_REACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case RAWSIMULATOR_PROACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-
-                case HEARTBREATING_RUN:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case HEARTBREATING_RECOVERED:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case HEARTBREATING_FUSED:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case HEARTBREATING_REACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case HEARTBREATING_PROACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-
-                case CRC_RUN:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case CRC_UPSIDEDOWN:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case CRC_RECOVERED:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case CRC_FUSED:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case CRC_REACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case CRC_PROACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                
-                case STAMPS_RUN:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case STAMPS_REACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-                case STAMPS_PROACTIVEDESTRUCT:
-                    fmt.Println(uniqueid, "-detail:", detail)
-
-                default:
-                    fmt.Println("未知的适配器返回了未知的信号类型这里不过多进行演示，"+
-                                "详细的演示会在river-node/test包内进行")
-                }			
-                
-
+                fmt.Println("Recriver-event:",eve.CodeString())
+                cs, uid, data, commit :=eve.Description() 
+                fmt.Println("Recriver-event-details:", cs, uid, data, commit)
             case err := <-Errors:
-                fmt.Println(err.Error())
+                fmt.Println("Recriver-error:",err.Error())
                 //实战中这里会进行日志的记录
             }
         }

@@ -50,7 +50,6 @@ type CRC struct{
 
 	countor 			int
 	event_run 			RN_event
-	event_upsidedown 	RN_event
 	event_fused 		RN_event
 
 	stop				chan struct{}
@@ -133,7 +132,6 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 	p.bytesHandler = bytes.NewBuffer([]byte{})
 
-	p.event_upsidedown  = NewEvent(CRC_UPSIDEDOWN, c.UniqueId, "", "")
 	p.event_fused 	  	= NewEvent(CRC_FUSED, c.UniqueId, "", "")
 
 
@@ -172,7 +170,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 func (p *CRC)Run(){
 
-	p.config.Events <- p.event_run
+	p.config.Events <-p.event_run
 
 	switch p.config.Mode{
 	case FILTER:
@@ -255,7 +253,7 @@ func (p *CRC)filter(mb []byte){
 	if bytes.Equal(p.checkCRC16(raw[p.config.FilterStartIndex:], p.config.Encoding), crc){
 		if p.countor != 0{
 			p.countor = 0
-			p.config.Events <- NewEvent(CRC_RECOVERED, p.config.UniqueId, "",
+			p.config.Events <-NewEvent(CRC_RECOVERED, p.config.UniqueId, "",
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
 					   p.countor,p.config.FilterNotPassLimit))
 		}
@@ -272,7 +270,8 @@ func (p *CRC)filter(mb []byte){
 					   "这一字节数组存在大小端颠倒的问题",p.countor,p.config.FilterNotPassLimit))
 		}
 
-		p.config.Events <- p.event_upsidedown
+		p.config.Events <-NewEvent(CRC_UPSIDEDOWN, p.config.UniqueId, hex.EncodeToString(raw),
+						"")
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
@@ -293,7 +292,7 @@ func (p *CRC)filter(mb []byte){
 
 		// 未通过校验的数据(错误数据)不再放入任何管道)
 
-		p.config.Events <- p.event_fused
+		p.config.Events <-p.event_fused
 	}
 }
 

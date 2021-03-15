@@ -98,7 +98,7 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 
 
 func (p *HeartBeating)Run(){
-	p.config.Events <- p.event_run
+	p.config.Events <-p.event_run
 
 	p.timer = time.NewTimer(p.config.TimeoutSec)
 
@@ -119,7 +119,7 @@ func (p *HeartBeating)Run(){
 				if p.countor < p.config.TimeoutLimit{
 					p.timer.Reset(p.config.TimeoutSec)
 					p.countor++
-					p.config.Errors <- NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
+					p.config.Errors <-NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
 						    fmt.Sprintf("连续第%d次超时，当前系统设定的最大超时次数为%d",
 						       p.countor,p.config.TimeoutLimit))
 				}else{
@@ -127,7 +127,7 @@ func (p *HeartBeating)Run(){
 							fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，系统设定的最大超时"+
 							   "次数为%d",p.countor,p.config.TimeoutLimit))
 					p.countor =0
-					p.config.Events <- p.event_fused
+					p.config.Events <-p.event_fused
 					return
 				}
 

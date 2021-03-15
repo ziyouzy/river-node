@@ -88,7 +88,7 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 
 
 func (p *RawSimulator)Run(){
-	p.config.Events <- p.rawsimulator_event_run
+	p.config.Events <-p.rawsimulator_event_run
 
 	go func(){
 		defer p.reactiveDestruct()
