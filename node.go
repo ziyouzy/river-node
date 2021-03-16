@@ -38,7 +38,13 @@ type NodeAbstract interface {
 	Construct(config Config) error
 	Run()
 	ProactiveDestruct()
-	reactiveDestruct()
+
+	/** 无论是此包内部还是此包外部所定义的river-node结构类型
+	 * 必须每个river-node都要包含私有reactiveDestruct()
+	 * 在此方法集取消reactiveDestruct()
+	 * 只是因为内部的私有方法让外部无法实现这个接口了
+	 */
+	//reactiveDestruct()   
 }
 
 
