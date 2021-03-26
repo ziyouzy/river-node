@@ -10,9 +10,10 @@ import (
     
  
     "fmt"
-    //"bytes"
+    "bytes"
     "time"
     "testing"	
+    "encoding/hex"
 )
  
 
@@ -65,7 +66,7 @@ func TestInit(t *testing.T) {
         Errors:                     Errors,
 
         TimeoutSec:                 3 * time.Second,
-        TimeoutLimit:               3,
+        Limit:                      3,
         Raws:                       hbRaws,
 
     }
@@ -86,10 +87,10 @@ func TestInit(t *testing.T) {
         Errors:                     Errors,
 
         Mode:                       FILTER,
-        Encoding:                   BIGENDDIAN,
-        FilterNotPassLimit:         20,
-        FilterStartIndex:           0,
-        FilterMinLen:               4, 
+        Encoding:                   LITTLEENDDIAN,
+        Limit_Filter:               20,
+        StartIndex_Filter:          0,
+        MinLen_Filter:              4, 
 
         Raws:                       crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/               
     }
@@ -116,8 +117,9 @@ func TestInit(t *testing.T) {
         Events:                     Events,/*发送给主进程的信号队列，就像Qt的信号与槽*/
         Errors:                     Errors,
 
-        Mode:                       HEADSANDTAILS, 
-        Breaking:                   []byte("+"), /*戳与数据间的分隔符，可以为nil*/
+        AutoTimeStamp:              true,
+        Mode:                       HEADS, 
+        Breaking:                   []byte("/-/"), /*戳与数据间的分隔符，可以为nil*/
         Stamps:                     [][]byte{[]byte("city"),[]byte{0x01,0x00,0x01,0x00,},[]byte("name"),[]byte{0xff,},}, /*允许输入多个，会按顺序依次拼接*/          
        
         Raws:                       crcConfig.News_Filter,/*从主线程发来的信号队列，就像Qt的信号与槽*/
@@ -128,8 +130,12 @@ func TestInit(t *testing.T) {
         panic("test stamps fail")
     }else{
         go func(){
-            for bytes := range stampsConfig.News{
-                fmt.Println("fin_stampsNew：",string(bytes))
+            for byteslice := range stampsConfig.News{
+                //fmt.Println(byteslice)
+                bl :=bytes.Split(byteslice,[]byte("/-/"))
+				fmt.Println(bl)
+                fmt.Println("fin of stamps news is:", StringTimeStamp(bl[0],true),string(bl[1]),hex.EncodeToString(bl[2]),string(bl[3]),
+                hex.EncodeToString(bl[4]),hex.EncodeToString(bl[5]))
             }
         }()
     }

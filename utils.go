@@ -30,3 +30,11 @@ func TimeStamp()[]byte{
 	binary.BigEndian.PutUint64(timestamp, uint64(time.Now().Unix()))
 	return timestamp
 }
+
+func StringTimeStamp(res []byte, isNano bool)string{
+	if isNano {
+		return time.Unix(0, int64(binary.BigEndian.Uint64(res))).Format("2006-01-02 15:04:05.000000000")
+	}else{
+		return time.Unix(int64(binary.BigEndian.Uint64(res)), 0).Format("2006-01-02 15:04:05")
+	}
+}

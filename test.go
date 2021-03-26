@@ -2,12 +2,12 @@ package river_node
 
 import (
 	"fmt"
-	//"time"
+	"time"
 	"testing"	
 
 )
 
 
-func TestStamps(t *testing.T) {
+func TestT(t *testing.T) {
 	fmt.Println(river_node.RegisteredNodes)
 }

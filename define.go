@@ -1,9 +1,10 @@
 package river_node
 
 const (
-	STOPBEFOREEXPIRE = true
-	STOPAFTEREXPIRE = false
+	TIMER_STOPBEFOREEXPIRE = true
+	TIMER_STOPAFTEREXPIRE = false
 )
+
 //crc
 const (
 	BIGENDDIAN = true
@@ -23,3 +24,11 @@ const (
 	HEADSANDTAILS
 )
 //stamps end
+
+
+//authcode
+const (
+	ENCODE = iota
+	DECODE
+)
+//authcode end

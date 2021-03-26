@@ -73,6 +73,10 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		return errors.New("stamps river-node init error, Raws is nil or News is not nil")
 	}
 
+	if len(c.Breaking)<3{
+		return errors.New("stamps river-node init error, Breaking is to short, please len(Breaking) >= 3")
+	}
+
 	if c.Mode != HEADSANDTAILS && c.Mode != HEADS && c.Mode != TAILS{
 		return errors.New("stamps river-node init error, unknown mode")
 	}

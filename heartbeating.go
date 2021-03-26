@@ -28,7 +28,7 @@ type HeartBeatingConfig struct{
 	 */
 
 	TimeoutSec 		time.Duration
-	TimeoutLimit    int
+	Limit  			int
 
 	Raws 			<-chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
 		 
@@ -48,7 +48,7 @@ type HeartBeating struct{
 	timer 				*time.Timer
 	config 				*HeartBeatingConfig
 
-	timeout_countor 	int
+	//timeout_countor 	int
 
 	countor 			int
 	event_run 			Event
@@ -72,22 +72,19 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 	c := v.Interface().(*HeartBeatingConfig)
 
 
-	if c.TimeoutSec == (0 * time.Second) || c.UniqueId == "" || c.TimeoutLimit ==0{
-		return errors.New("heartbeating river-node init error, "+
-		             "timeout or uniqueId or timeoutlimit is nil")
+	if c.TimeoutSec == (0 * time.Second) || c.UniqueId == "" || c.Limit ==0{
+		return errors.New("heartbeating river-node init error, timeout or uniqueId or timeoutlimit is nil")
 	}
 
 	if c.Events == nil || c.Errors == nil || c.Raws == nil{
-		return errors.New("heartbeating river-node init error, "+
-					 "Raws or Events or Errors Raws is nil")
+		return errors.New("heartbeating river-node init error, Raws or Events or Errors Raws is nil")
 	}
 	
 	p.config = c
 
 	p.event_run = NewEvent(HEARTBREATING_RUN,p.config.UniqueId,"",
-	 fmt.Sprintf("heartbeating适配器开始运行，其UniqueId为%s, 最大超时秒数为%d, "+
-		"最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
-		p.config.UniqueId, p.config.TimeoutSec, p.config.TimeoutLimit))
+	 fmt.Sprintf("heartbeating适配器开始运行，其UniqueId为%s, 最大超时秒数为%v, 最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
+		p.config.UniqueId, p.config.TimeoutSec, p.config.Limit))
 	p.event_fused = NewEvent(HEARTBREATING_FUSED,c.UniqueId, "","")
 
 	p.stop =make(chan struct{})
@@ -116,16 +113,16 @@ func (p *HeartBeating)Run(){
 							   "Raws管道已正常排空，uid为%s",p.config.UniqueId)) 
 				}
 
-				if p.countor < p.config.TimeoutLimit{
+				if p.countor < p.config.Limit{
 					p.timer.Reset(p.config.TimeoutSec)
 					p.countor++
 					p.config.Errors <-NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
 						    fmt.Sprintf("连续第%d次超时，当前系统设定的最大超时次数为%d",
-						       p.countor,p.config.TimeoutLimit))
+						       p.countor,p.config.Limit))
 				}else{
 					p.config.Errors <-NewError(HEARTBREATING_FUSED,p.config.UniqueId,"",
 							fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，系统设定的最大超时"+
-							   "次数为%d",p.countor,p.config.TimeoutLimit))
+							   "次数为%d",p.countor,p.config.Limit))
 					p.countor =0
 					p.config.Events <-p.event_fused
 					return
@@ -135,7 +132,7 @@ func (p *HeartBeating)Run(){
 			case _, ok :=<-p.config.Raws:
 				if !ok { return }
 				/*Reset一个timer前必须先正确的关闭它*/
-				if p.timer.Stop() == STOPAFTEREXPIRE{ 
+				if p.timer.Stop() == TIMER_STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
 					p.config.Errors <-NewError(HEARTBREATING_TIMERLIMITED,p.config.UniqueId,"",
 							fmt.Sprintf("heartbeating适配器发生了“计时器未超时下的数据临界事件”,"+
@@ -146,7 +143,7 @@ func (p *HeartBeating)Run(){
 					p.countor =0
 					p.config.Events <-NewEvent(HEARTBREATING_RECOVERED,p.config.UniqueId,"",
 						    fmt.Sprintf("已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
-							   p.countor,p.config.TimeoutLimit))
+							   p.countor,p.config.Limit))
 				}
 
 				p.timer.Reset(p.config.TimeoutSec)

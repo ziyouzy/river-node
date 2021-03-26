@@ -27,9 +27,9 @@ type CRCConfig struct{
 
 	News_AddTail				chan []byte
 	//----------
-	FilterStartIndex			int
-	FilterNotPassLimit      	int
-	FilterMinLen                int
+	StartIndex_Filter			int
+	Limit_Filter      			int
+	MinLen_Filter                int
 	News_Filter 		  		chan []byte /*校验通过切去掉校验码的新切片*/
 
 }
@@ -78,7 +78,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}
 
 	if c.News_Filter != nil || c.News_AddTail != nil{
-		return errors.New("river-node init error, News_Filter or News_AddTail is not nil")
+		return errors.New("crc river-node init error, News_Filter or News_AddTail is not nil")
 	}
 
 
@@ -87,9 +87,9 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}
 
 	
-	if c.Mode ==FILTER && (c.FilterNotPassLimit ==0 || c.FilterMinLen ==0){
+	if c.Mode ==FILTER && (c.Limit_Filter ==0 || c.MinLen_Filter ==0){
 		return errors.New("filter mode crc river-node init error, "+
-		             "FilterNotPassLimit or FilterMinLen is nil") 
+		             "Limit_Filter or MinLen_Filter is nil") 
 	}
 
 	/*FilterStartIndex允许为0且默认为0*/
@@ -143,13 +143,13 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}else{
 		endianStr ="小端模式"
 	}
-
+	
 	if p.config.Mode == FILTER{
-		modeStr ="crc校验模式，将通过的结果注入News_Pass管道，不通过的进行转化并注入Errors管道"
+		modeStr ="crc校验模式，将通过的结果注入News_Filter管道，不通过的进行转化并注入Errors管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,"",
 			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
-			   "大小端模式为:%s，校验起始下标为:%d",p.config.UniqueId, p.config.FilterNotPassLimit, 
-			   modeStr, endianStr,p.config.FilterStartIndex))
+			   "大小端模式为:%s，校验起始下标为:%d",p.config.UniqueId, p.config.Limit_Filter, 
+			   modeStr, endianStr,p.config.StartIndex_Filter))
 
 		p.config.News_Filter		= make(chan []byte)
 
@@ -241,33 +241,33 @@ func init() {
 
 
 func (p *CRC)filter(mb []byte){
-	if len(mb) < p.config.FilterMinLen{
+	if len(mb) < p.config.MinLen_Filter{
 		p.config.Errors <-NewError(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
 						fmt.Sprintf("待验证的modbus码不足所设定的最少位数：%d位，",
-						   p.config.FilterMinLen))
+						   p.config.MinLen_Filter))
 		return
 	}
 
 	raw,crc := p.midModbus(mb) 
 
-	if bytes.Equal(p.checkCRC16(raw[p.config.FilterStartIndex:], p.config.Encoding), crc){
+	if bytes.Equal(p.checkCRC16(raw[p.config.StartIndex_Filter:], p.config.Encoding), crc){
 		if p.countor != 0{
 			p.countor = 0
 			p.config.Events <-NewEvent(CRC_RECOVERED, p.config.UniqueId, "",
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
-					   p.countor,p.config.FilterNotPassLimit))
+					   p.countor,p.config.Limit_Filter))
 		}
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
 		p.config.News_Filter <-p.bytesHandler.Bytes()
 
-	}else if bytes.Equal(p.checkCRC16(raw[p.config.FilterStartIndex:], !p.config.Encoding),crc){
+	}else if bytes.Equal(p.checkCRC16(raw[p.config.StartIndex_Filter:], !p.config.Encoding),crc){
 		if p.countor != 0{
 			p.countor = 0
 			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,hex.EncodeToString(raw),
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,但是当前"+
-					   "这一字节数组存在大小端颠倒的问题",p.countor,p.config.FilterNotPassLimit))
+					   "这一字节数组存在大小端颠倒的问题",p.countor,p.config.Limit_Filter))
 		}
 
 		p.config.Events <-NewEvent(CRC_UPSIDEDOWN, p.config.UniqueId, hex.EncodeToString(raw),
@@ -277,17 +277,17 @@ func (p *CRC)filter(mb []byte){
 		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
 		p.config.News_Filter <-p.bytesHandler.Bytes()
 
-	}else if p.countor < p.config.FilterNotPassLimit{
+	}else if p.countor < p.config.Limit_Filter{
 		p.countor++
 		p.config.Errors <-NewError(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
 				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
-				   p.countor, p.config.FilterNotPassLimit))
+				   p.countor, p.config.Limit_Filter))
 
 		// 未通过校验的数据(错误数据)不再放入任何管道
 	}else{
 		p.config.Errors <-NewError(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
 				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-				"次数为%d",p.countor,p.config.FilterNotPassLimit))
+				"次数为%d",p.countor,p.config.Limit_Filter))
 		p.countor =0
 
 		// 未通过校验的数据(错误数据)不再放入任何管道)
