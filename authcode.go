@@ -321,6 +321,7 @@ func (p *AuthCode)authCode(str string, operation int, key string, expiry int) st
 		if operation == DECODE {
 			keyc = str[:ckey_length]//这里用到了str，并且是原始的未加工的str字符串
 		} else {
+			//这么写有问题，不是纯粹的时间戳
 			sTime := p.getMd5String(time.Now().String())//这里拿到的不是时间字符串，而是时间字符串的md5，因此必然会是32位长度
 			sLen := 32 - ckey_length
 			keyc = sTime[sLen:]//keyc其实就是一个时间戳的md5码片段
@@ -332,6 +333,8 @@ func (p *AuthCode)authCode(str string, operation int, key string, expiry int) st
 
 	// 参与运算的密匙
 	cryptkey := fmt.Sprintf("%s%s", keya, p.getMd5String(keya + keyc))
+	//len(keya)==16,len(p.getMd5String(keya + keyc))==16
+	//因此len(cryptkey)必然==32个16进制数，或者说长度为32
 	key_length := len(cryptkey)
 
 
@@ -373,26 +376,43 @@ func (p *AuthCode)authCode(str string, operation int, key string, expiry int) st
 		tmpMd5 := getMd5String(str + keyb)
 		str = fmt.Sprintf("%010d%s%s", expiry, tmpMd5[:16], str)//010d不是字符串，而是%010d,代表了十进制整数输出,同时指定了宽度是10位(expiry是个10进制整型变量)
 	}
+
+
 	string_length := len(str)
 	resdata := make([]byte, 0, string_length)
-	var rndkey, box [256]int
+	var rndkey [256]int//是个数组，非切片
+	
 	// 产生密匙簿
 	j := 0
 	a := 0
 	i := 0
 	tmp := 0
+	// 准备好加密所需的基础零件rndkey[]
 	for i = 0; i < 256; i++ {
-		rndkey[i] = int(cryptkey[i % key_length])
-		box[i] = i
+		rndkey[i] = int(cryptkey[i % key_length])//key_length==len(cryptkey)
+		//box[i] = i
 	}
+
+
+	// 准备好加密所需的基础零件box[]
+	rand.Seed(time.Now().UnixNano())
+	box := rand.Perm(256)//直接生成随机序列(切片)
+
+
 	// 用固定的算法，打乱密匙簿，增加随机性，好像很复杂，实际上并不会增加密文的强度
+	//其实可以概括为“用rndkey打散box
 	for i = 0; i < 256; i ++ {
 		j = (j + box[i] + rndkey[i]) % 256
 		tmp = box[i]
 		box[i] = box[j]
 		box[j] = tmp
 	}
+
+
 	// 核心加解密部分
+	// 用一个可以使用的box加密/解密数据
+	// 这一步有个特点，那就是encode和decode时是使用同一种计算方法，那就是
+	// byte(int(str[i]) ^ box[(box[a] + box[j]) % 256])
 	a = 0;j = 0;tmp = 0
 	for i = 0; i < string_length; i++ {
 		a = ((a + 1) % 256)
@@ -404,6 +424,9 @@ func (p *AuthCode)authCode(str string, operation int, key string, expiry int) st
 		resdata = append(resdata, byte(int(str[i]) ^ box[(box[a] + box[j]) % 256]))
 	}
 	result := string(resdata)	
+	//result_bytes := resdata
+
+
 	if operation == DECODE {
 		// substr($result, 0, 10) == 0 验证数据有效性
 		// substr($result, 0, 10) - time() > 0 验证数据有效性
@@ -421,6 +444,8 @@ func (p *AuthCode)authCode(str string, operation int, key string, expiry int) st
 		// 把动态密匙保存在密文里，这也是为什么同样的明文，生产不同密文后能解密的原因
 		// 因为加密后的密文可能是一些特殊字符，复制过程可能会丢失，所以用base64编码
 		result = keyc + base64.StdEncoding.EncodeToString([]byte(result))
+		//result_bytes = keyc + base64.StdEncoding.EncodeToString(result_bytes))
+		// 上方内容：keyc = sTime[sLen:]//keyc其实就是一个时间戳的md5码片段
 		result = strings.Replace(result, "+", "*", -1)
 		result = strings.Replace(result, "/", "_", -1)
 
@@ -433,3 +458,6 @@ func (p *AuthCode)authCode(str string, operation int, key string, expiry int) st
 		}
 	}
 }
+
+encode:1.添加%10d->2.kangsheng->3.base64_encode->4.添加keyc
+decode:kangsheng前删除keyc，康盛后验证过期
