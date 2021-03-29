@@ -204,7 +204,7 @@ func (p *CRC)Run(){
 }
 
 func (p *CRC)ProactiveDestruct(){
-	p.config.Events <-NewEvent(CRC_PROACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(CRC_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
 	 "注意，由于某些原因CRC校验包主动调用了显式析构方法")
 	p.stop<-struct{}{}
 	
@@ -213,7 +213,7 @@ func (p *CRC)ProactiveDestruct(){
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *CRC)reactiveDestruct(){
-	p.config.Events <-NewEvent(CRC_REACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(CRC_REACTIVE_DESTRUCT,p.config.UniqueId,"",
 		            "CRC校验包触发了隐式析构方法")
 
 	//析构数据源
@@ -260,22 +260,21 @@ func (p *CRC)filter(mb []byte){
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
-		p.config.News_Filter <-p.bytesHandler.Bytes()
+		p.config.News_Filter <-append([]byte{},p.bytesHandler.Bytes()...)
 
 	}else if bytes.Equal(p.checkCRC16(raw[p.config.StartIndex_Filter:], !p.config.Encoding),crc){
 		if p.countor != 0{
-			p.countor = 0
 			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,hex.EncodeToString(raw),
 					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,但是当前"+
 					   "这一字节数组存在大小端颠倒的问题",p.countor,p.config.Limit_Filter))
+			p.countor = 0
 		}
 
-		p.config.Events <-NewEvent(CRC_UPSIDEDOWN, p.config.UniqueId, hex.EncodeToString(raw),
-						"")
+		p.config.Events <-NewEvent(CRC_UPSIDEDOWN, p.config.UniqueId, hex.EncodeToString(raw),"")
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
-		p.config.News_Filter <-p.bytesHandler.Bytes()
+		p.config.News_Filter <-append([]byte{},p.bytesHandler.Bytes()...)
 
 	}else if p.countor < p.config.Limit_Filter{
 		p.countor++
@@ -305,10 +304,11 @@ func (p *CRC)addTail(raw []byte){
 		return
 	}
 
+	fmt.Println("tail:",tail)
 	raw = append(raw,tail...)
 	p.bytesHandler.Reset()
 	p.bytesHandler.Write(raw)
-	p.config.News_AddTail <- p.bytesHandler.Bytes()
+	p.config.News_AddTail <- append([]byte{},p.bytesHandler.Bytes()...)
 }
 
 
@@ -342,5 +342,5 @@ func (p *CRC)checkCRC16(data []byte, Endian bool) []byte {
 		p.bytesHandler.Reset()
 		binary.Write(p.bytesHandler, binary.LittleEndian, &crc16)
 	}
-	return p.bytesHandler.Bytes()
+	return append([]byte{},p.bytesHandler.Bytes()...)
 }

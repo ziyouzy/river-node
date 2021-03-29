@@ -111,13 +111,13 @@ func (p *RawSimulator)Run(){
 
 //作为数据源，这个方法到时有很多合理的使用场景
 func (p *RawSimulator)ProactiveDestruct(){
-	p.config.Events <-NewEvent(RAWSIMULATOR_PROACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(RAWSIMULATOR_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
 	 "注意，由于某些原因数据源模拟器主动调用了显式析构方法")
 	p.stop <-struct{}{}
 }
 
 func (p *RawSimulator)reactiveDestruct(){
-	p.config.Events <-NewEvent(RAWSIMULATOR_REACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(RAWSIMULATOR_REACTIVE_DESTRUCT,p.config.UniqueId,"",
 	 "数据源模拟器触发了隐式析构方法")
 
 	close(p.config.News_ByteSlice)

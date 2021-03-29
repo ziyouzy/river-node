@@ -9,6 +9,10 @@ github.com/mattn/go-isatty v0.0.11 h1:FxPOTFNqGkuDUGi3H/qkUbQO4ZiBa2brKq5r0l8TGe
 github.com/mattn/go-isatty v0.0.11/go.mod h1:PhnuNfih5lzO57/f3n+odYbM4JtupLOxQOAqxQCu2WE=
 github.com/phachon/go-logger v0.0.0-20191215032019-86e4227f71ea h1:IkOONr/u7Wy+j2R4r1eMV8PEuN4kmOhZZNaYxDOF+KQ=
 github.com/phachon/go-logger v0.0.0-20191215032019-86e4227f71ea/go.mod h1:WBIWFH/iYYvuApCvPU+/R6hfX6v0Ogu4apwf0UgzVF0=
+github.com/ziyouzy/go-authcode v0.0.2 h1:x9mfRy5sqGaOJEM+OHrphJZsRZvS05FniZpt0xUqjMk=
+github.com/ziyouzy/go-authcode v0.0.2/go.mod h1:b7Pd2FEYz4YSyF3Msyr/mRXPLC5sP4fdRTaw329UMe4=
+github.com/ziyouzy/go-authcode v0.0.3 h1:b9h7fxsaZP/RHESYzzqdsPQVA9NL79ys8JAuXNu7LG4=
+github.com/ziyouzy/go-authcode v0.0.3/go.mod h1:b7Pd2FEYz4YSyF3Msyr/mRXPLC5sP4fdRTaw329UMe4=
 github.com/ziyouzy/logger v0.0.0 h1:Zcgg6knkwvhZEVyNCAkOMZezQCln6+KztStvBmtSa8k=
 github.com/ziyouzy/logger v0.0.0/go.mod h1:hbx7CvLJh+iRzidJcsm4Q8nmBuLGo/k7E3Im8LO7hlg=
 golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

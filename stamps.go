@@ -146,7 +146,7 @@ func (p *Stamps)Run(){
 }
 
 func (p *Stamps)ProactiveDestruct(){
-	p.config.Events <-NewEvent(STAMPS_PROACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(STAMPS_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
 		    "注意，由于某些原因印章包主动调用了显式析构方法")
 
 	p.stop<-struct{}{}	
@@ -154,7 +154,7 @@ func (p *Stamps)ProactiveDestruct(){
 
 
 func (p *Stamps)reactiveDestruct(){
-	p.config.Events <-NewEvent(STAMPS_REACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(STAMPS_REACTIVE_DESTRUCT,p.config.UniqueId,"",
 		"印章包触发了隐式析构方法")
 
 	close(p.stop)	
@@ -191,7 +191,7 @@ func (p *Stamps)stampToHead(raw []byte){
 
 	p.bytesHandler.Write(raw)
 
-	p.config.News <-p.bytesHandler.Bytes()
+	p.config.News <-append([]byte{},p.bytesHandler.Bytes()...)
 }
 
 func (p *Stamps)stampToTail(raw []byte){
@@ -208,7 +208,7 @@ func (p *Stamps)stampToTail(raw []byte){
 		p.bytesHandler.Write(stamp)
 	}
 
-	p.config.News <-p.bytesHandler.Bytes()
+	p.config.News <-append([]byte{},p.bytesHandler.Bytes()...)
 }
 
 func (p *Stamps)stampToHeadAndTail(raw []byte){
@@ -234,7 +234,7 @@ func (p *Stamps)stampToHeadAndTail(raw []byte){
 
 	p.bytesHandler.Write(raw);    p.bytesHandler.Write(p.tailHandler.Bytes())
 
-	p.config.News <-p.bytesHandler.Bytes()
+	p.config.News <-append([]byte{}, p.bytesHandler.Bytes()...)
 }
 
 

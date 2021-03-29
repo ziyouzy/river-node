@@ -157,7 +157,7 @@ func (p *HeartBeating)Run(){
 
 
 func (p *HeartBeating)ProactiveDestruct(){
-	p.config.Events <-NewEvent(HEARTBREATING_PROACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(HEARTBREATING_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
 		    "注意，由于某些原因心跳包主动调用了显式析构方法")
 
 	p.stop<-struct{}{}	
@@ -167,7 +167,7 @@ func (p *HeartBeating)ProactiveDestruct(){
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *HeartBeating)reactiveDestruct(){
 	//析构操作在前，管道内就算有新事件也不需要了
-	p.config.Events <-NewEvent(HEARTBREATING_REACTIVEDESTRUCT,p.config.UniqueId,"",
+	p.config.Events <-NewEvent(HEARTBREATING_REACTIVE_DESTRUCT,p.config.UniqueId,"",
 		  	"心跳包触发了隐式析构方法")
 	_ = p.timer.Stop()
 	close(p.stop)
