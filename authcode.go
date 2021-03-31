@@ -7,15 +7,9 @@ import (
 
 	"github.com/ziyouzy/go-authcode"
 
-	//"crypto/md5"
-	//"encoding/base64"
-	//"encoding/hex"
 	"fmt"
-	//"strconv"
-	//"strings"
 	"errors"
 	"reflect"
-	//"time"
 )
 
 
