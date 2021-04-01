@@ -12,7 +12,7 @@ import (
 )
 
 
-const CRC_RIVERNODE_NAME = "crc"
+const CRC_RIVERNODE_NAME = "crc校验适配器"
 
 
 type CRCConfig struct{
@@ -29,7 +29,7 @@ type CRCConfig struct{
 	//----------
 	StartIndex_Filter			int
 	Limit_Filter      			int
-	MinLen_Filter                int
+	MinLen_Filter               int
 	News_Filter 		  		chan []byte /*校验通过切去掉校验码的新切片*/
 
 }
@@ -61,7 +61,7 @@ func (p *CRC)Name()string{
 
 func (p *CRC)Construct(CRCConfigAbs Config) error{
 	if CRCConfigAbs.Name() != CRC_RIVERNODE_NAME {
-		return errors.New("crc river_node init error, config must CRCConfig")
+		return errors.New(fmt.Sprintf("[%s] init error, config must CRCConfig", p.Name()))
 	}
 
 
@@ -70,26 +70,25 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 
 	if c.UniqueId == "" {
-		return errors.New("crc river_node init error, uniqueId is nil")
+		return errors.New(fmt.Sprintf("[%s] init error, uniqueId is nil", p.Name()))
 	}
 
 	if c.Events == nil || c.Errors == nil || c.Raws == nil{
-		return errors.New("crc river_node init error, Events or Errors or Raws is nil")
+		return errors.New(fmt.Sprintf("[%s] init error, Events or Errors or Raws is nil", p.Name()))
 	}
 
 	if c.News_Filter != nil || c.News_AddTail != nil{
-		return errors.New("crc river-node init error, News_Filter or News_AddTail is not nil")
+		return errors.New(fmt.Sprintf("[%s] init error, News_Filter or News_AddTail is not nil", p.Name()))
 	}
 
 
 	if c.Mode != FILTER&&c.Mode != ADDTAIL {
-		return errors.New("crc river-node init error, unknown mode") 
+		return errors.New(fmt.Sprintf("[%s] init error, unknown mode", p.Name())) 
 	}
 
 	
 	if c.Mode ==FILTER && (c.Limit_Filter ==0 || c.MinLen_Filter ==0){
-		return errors.New("filter mode crc river-node init error, "+
-		             "Limit_Filter or MinLen_Filter is nil") 
+		return errors.New(fmt.Sprintf("filter [%s] init error, Limit_Filter or MinLen_Filter is nil", p.Name())) 
 	}
 
 	/*FilterStartIndex允许为0且默认为0*/
@@ -130,7 +129,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 		0X4400, 0X84C1, 0X8581, 0X4540, 0X8701, 0X47C0, 0X4680, 0X8641,
 		0X8201, 0X42C0, 0X4380, 0X8341, 0X4100, 0X81C1, 0X8081, 0X4040}
 
-	p.bytesHandler = bytes.NewBuffer([]byte{})
+	p.bytesHandler 		= bytes.NewBuffer([]byte{})
 
 	p.event_fused 	  	= NewEvent(CRC_FUSED, c.UniqueId, "", "")
 
@@ -147,8 +146,8 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	if p.config.Mode == FILTER{
 		modeStr ="crc校验模式，将通过的结果注入News_Filter管道，不通过的进行转化并注入Errors管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
-			   "大小端模式为:%s，校验起始下标为:%d",p.config.UniqueId, p.config.Limit_Filter, 
+			fmt.Sprintf("[%s]开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
+			   "大小端模式为:%s，校验起始下标为:%d",p.Name(),p.config.UniqueId, p.config.Limit_Filter, 
 			   modeStr, endianStr,p.config.StartIndex_Filter))
 
 		p.config.News_Filter		= make(chan []byte)
@@ -156,7 +155,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}else if p.config.Mode == ADDTAIL{
 		modeStr ="追加crc校验码模式，将追加后生成的modbus码注入News_AddTail管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("CRC校验适配器开始运行，其UniqueId为%s, Mode为:%s,大小端模式为:%s",
+			fmt.Sprintf("[%s]开始运行，其UniqueId为%s, Mode为:%s,大小端模式为:%s", p.Name(),
 			   p.config.UniqueId, modeStr, endianStr))
 
 		p.config.News_AddTail 		= make(chan []byte)
@@ -205,7 +204,7 @@ func (p *CRC)Run(){
 
 func (p *CRC)ProactiveDestruct(){
 	p.config.Events <-NewEvent(CRC_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
-	 "注意，由于某些原因CRC校验包主动调用了显式析构方法")
+					fmt.Sprintf("注意，由于某些原因%s主动调用了显式析构方法", p.Name()))
 	p.stop<-struct{}{}
 	
 }
@@ -214,7 +213,7 @@ func (p *CRC)ProactiveDestruct(){
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *CRC)reactiveDestruct(){
 	p.config.Events <-NewEvent(CRC_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		            "CRC校验包触发了隐式析构方法")
+					fmt.Sprintf("[%s]触发了隐式析构方法", p.Name()))
 
 	//析构数据源
 	close(p.stop)
@@ -236,15 +235,14 @@ func NewCRC() NodeAbstract {
 
 func init() {
 	Register(CRC_RIVERNODE_NAME, NewCRC)
-	logger.Info("预加载完成，CRC校验适配器已预加载至package river_node.RNodes结构内")
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.RNodes结构内", CRC_RIVERNODE_NAME))
 }
 
 
 func (p *CRC)filter(mb []byte){
 	if len(mb) < p.config.MinLen_Filter{
 		p.config.Errors <-NewError(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
-						fmt.Sprintf("待验证的modbus码不足所设定的最少位数：%d位，",
-						   p.config.MinLen_Filter))
+						fmt.Sprintf("待验证的modbus码不足所设定的最少位数：%d位，",p.config.MinLen_Filter))
 		return
 	}
 
@@ -300,11 +298,10 @@ func (p *CRC)addTail(raw []byte){
 	var tail []byte
 	if tail = p.checkCRC16(raw, p.config.Encoding); tail ==nil{
 		p.config.Errors <-NewError(CRC_NULLTAIL, p.config.UniqueId, hex.EncodeToString(raw), 
-						fmt.Sprintf("ADDTAIL模式的CRC校验器生成了空的校验码,问题校验码"))
+						fmt.Sprintf("ADDTAIL模式的[%s]生成了空的校验码,问题校验码", p.Name()))
 		return
 	}
 
-	fmt.Println("tail:",tail)
 	raw = append(raw,tail...)
 	p.bytesHandler.Reset()
 	p.bytesHandler.Write(raw)

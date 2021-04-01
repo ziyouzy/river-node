@@ -10,7 +10,7 @@ import (
 	"errors"
 )
 
-const STAMPS_RIVERNODE_NAME = "stamps"
+const STAMPS_RIVERNODE_NAME = "stamps适配器"
 
 type StampsConfig struct{
 	UniqueId 	    string	/*其所属上层Conn的唯一识别标识*/
@@ -53,7 +53,7 @@ func (p *Stamps)Name()string{
 
 func (p *Stamps)Construct(stampsConfigAbs Config) error{
 	if stampsConfigAbs.Name() != STAMPS_RIVERNODE_NAME {
-		return errors.New("stamps river-node init error, config must StampsConfig")
+		return errors.New(fmt.Sprintf("[%s] init error, config must StampsConfig",p.Name()))
 	}
 
 
@@ -62,27 +62,27 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 
 
 	if c.Breaking == nil || c.Stamps == nil {
-		return errors.New("stamps river-node init error, breaking or stamps is nil")
+		return errors.New(fmt.Sprintf("[%s] init error, breaking or stamps is nil",p.Name()))
 	}
 
 	if c.Events == nil || c.Errors ==nil{
-		return errors.New("stamps river-node init error, Events or Errors is nil")
+		return errors.New(fmt.Sprintf("[%s] init error, Events or Errors is nil",p.Name()))
 	}
 
 	if c.Raws == nil || c.News !=nil{
-		return errors.New("stamps river-node init error, Raws is nil or News is not nil")
+		return errors.New(fmt.Sprintf("[%s] init error, Raws is nil or News is not nil",p.Name()))
 	}
 
 	if len(c.Breaking)<3{
-		return errors.New("stamps river-node init error, Breaking is to short, please len(Breaking) >= 3")
+		return errors.New(fmt.Sprintf("[%s] init error, Breaking is to short, please len(Breaking) >= 3",p.Name()))
 	}
 
 	if c.Mode != HEADSANDTAILS && c.Mode != HEADS && c.Mode != TAILS{
-		return errors.New("stamps river-node init error, unknown mode")
+		return errors.New(fmt.Sprintf("[%s] init error, unknown mode",p.Name()))
 	}
 	
 	if c.Mode == HEADSANDTAILS && len(c.Stamps)<2{
-		return errors.New("stamps river-node init error, mode is headandtail but only one stamp")
+		return errors.New(fmt.Sprintf("[%s] init error, mode is headandtail but only one stamp",p.Name()))
 	}
 
 	p.config = c
@@ -109,12 +109,11 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
 	}
 	
-	p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("stamps适配器"+
-				  "开始运行，其UniqueId为%s,Mode为%s并且%s。",p.config.UniqueId, 
-				  modeStr,timeStampStr))
+	p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[%s]开始运行，"+
+				  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
 
 	p.config.News		=make(chan []byte)
-	p.stop		=make(chan struct{})
+	p.stop				=make(chan struct{})
 
 	return nil
 }
@@ -147,7 +146,7 @@ func (p *Stamps)Run(){
 
 func (p *Stamps)ProactiveDestruct(){
 	p.config.Events <-NewEvent(STAMPS_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
-		    "注意，由于某些原因印章包主动调用了显式析构方法")
+		    fmt.Sprintf("注意，由于某些原因[%s]主动调用了显式析构方法", p.Name()))
 
 	p.stop<-struct{}{}	
 }
@@ -155,7 +154,7 @@ func (p *Stamps)ProactiveDestruct(){
 
 func (p *Stamps)reactiveDestruct(){
 	p.config.Events <-NewEvent(STAMPS_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		"印章包触发了隐式析构方法")
+		fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))
 
 	close(p.stop)	
 	close(p.config.News)
@@ -169,7 +168,7 @@ func NewStamps() NodeAbstract {
 
 func init() {
 	Register(STAMPS_RIVERNODE_NAME, NewStamps)
-	logger.Info("预加载完成，印章适配器已预加载至package river_node.Nodes结构内")
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内",STAMPS_RIVERNODE_NAME))
 }
 
 

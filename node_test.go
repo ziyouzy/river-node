@@ -13,7 +13,7 @@ import (
     "bytes"
     "time"
     "testing"	
-    "encoding/hex"
+    //"encoding/hex"
 )
  
 
@@ -44,13 +44,12 @@ func TestInit(t *testing.T) {
 
         UniqueId:                   "testPkg",
         Events:                     Events,
-        //Errors:                   Errors,
 
         StepSec:		            1 * time.Second,
     }
 
-    if err := rawSimulator.Construct(rawSimulatorConfig); err != nil {
-        logger.Info("test rawSimulator-river-node init fail:"+err.Error())
+    if err := rawSimulator.Construct(rawSimulatorConfig); err != nil{
+        logger.Info(fmt.Sprintf("test [%s] init fail: %s",rawSimulator.Name(),err.Error()))
         panic("rawSimulator fail")
     }
 
@@ -100,7 +99,7 @@ func TestInit(t *testing.T) {
         panic("test crc fail")
     }else{
         go func(){
-            for bytes := range rawSimulatorConfig.News_ByteSlice{
+            for bytes := range rawSimulatorConfig.News{
                 hbRaws <- struct{}{}
                 crcRaws <- bytes
             }
@@ -134,8 +133,8 @@ func TestInit(t *testing.T) {
                 //fmt.Println(byteslice)
                 bl :=bytes.Split(byteslice,[]byte("/-/"))
 				fmt.Println(bl)
-                fmt.Println("fin of stamps news is:", StringTimeStamp(bl[0],true),string(bl[1]),hex.EncodeToString(bl[2]),string(bl[3]),
-                hex.EncodeToString(bl[4]),hex.EncodeToString(bl[5]))
+                fmt.Println("fin of stamps news is:", StringTimeStamp(bl[0],true),string(bl[1]),fmt.Sprintf("%x",bl[2]),string(bl[3]),
+                fmt.Sprintf("%x",bl[4]),fmt.Sprintf("%x",bl[5]))
             }
         }()
     }

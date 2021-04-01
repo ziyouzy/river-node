@@ -58,11 +58,15 @@ type Event interface{
 	ToError() error
 }
 
-func NewEvent(code int, uniqueId string, dataToString string, commit string) Event{
+//有可能会存在将一个纯粹的error转化为这里的error的情况
+//比如我自己所设计的phyicalnode包，以及authcode包，他们在运行是会返回原生的error数据类型
+//而将他们river-node化后，必然需要处理这些error，禁止把这些error等同于第三个参数
+//再或者说，无论error还是event的第三个字段只能放入出问题的数据，err的具体内容是属于commit参数的一部分
+func NewEvent(code int, uniqueId string, raw string, commit string) Event{
 	if uniqueId =="" && code ==0 { return nil }
 
-	if dataToString == "" {
-		dataToString = "N/A"
+	if raw == "" {
+		raw = "N/A"
 	} else {
 		commit = fmt.Sprintf("[Data not N/A] %s", commit)
 	}
@@ -74,7 +78,7 @@ func NewEvent(code int, uniqueId string, dataToString string, commit string) Eve
 	e :=&eve{
 		uniqueId: 	uniqueId,
 		code: 		code,
-		data:		dataToString,
+		data:		raw,
 		commit:		commit,
 	}
 	return e

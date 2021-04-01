@@ -77,7 +77,7 @@ func TestInit(t *testing.T) {
 	}else{
         go func(){
             for byteslice := range crcConfig.News_AddTail{
-                fmt.Println("with tail：",hex.EncodeToString(byteslice))
+                fmt.Println("with tail：",fmt.Sprintf("%x",byteslice))
             }
         }()
     }

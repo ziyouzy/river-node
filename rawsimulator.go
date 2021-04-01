@@ -5,24 +5,23 @@ package river_node
 import (
 	"github.com/ziyouzy/logger"
 	
-	//"fmt"
+	"fmt"
 	"time"
 	"reflect"
 	"errors"
 )
 
 
-const RAWSIMULATOR_RIVERNODE_NAME = "testdatacreater"
+const RAWSIMULATOR_RIVERNODE_NAME = "testdatacreater数据源模拟器"
  
 
 type RawSimulatorConfig struct{
 	UniqueId 				string	/*其所属上层Conn的唯一识别标识*/
 	Events 					chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
-	//Errors 				chan error
 		 
 	StepSec					time.Duration
 
-	News_ByteSlice 			chan []byte
+	News		 			chan []byte
 }
 
 func (p *RawSimulatorConfig)Name()string{
@@ -43,8 +42,7 @@ func (p *RawSimulator)Name()string{
 
 func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 	if rawSimulatorConfigAbs.Name() != RAWSIMULATOR_RIVERNODE_NAME {
-		return errors.New("rawsimulator river-node init error, "+ 
-		             "config must RawSimulatorConfig")
+		return errors.New(fmt.Sprintf("[%s] init error, config must RawSimulatorConfig",p.Name()))
 	}
 
 
@@ -53,15 +51,15 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 
 
 	if c.UniqueId == ""{
-		return errors.New("rawsimulator river-node init error uniqueId is nil")
+		return errors.New(fmt.Sprintf("[%s] init error uniqueId is nil",p.Name()))
 	}
 
-	if c.Events == nil /*|| c.Errors == nil*/{
-		return errors.New("rawsimulator river-node init error, Events is nil")
+	if c.Events == nil{
+		return errors.New(fmt.Sprintf("[%s] init error, Events is nil",p.Name()))
 	}
 
-	if c.StepSec == (0 * time.Second) || c.News_ByteSlice != nil{
-		return errors.New("rawsimulator river-node init error, StepSec or News is not nil")
+	if c.StepSec == (0 * time.Second) || c.News != nil{
+		return errors.New(fmt.Sprintf("[%s] init error, StepSec or News is not nil",p.Name()))
 	}
 	
 	
@@ -78,9 +76,9 @@ func (p *RawSimulator)Construct(rawSimulatorConfigAbs Config) error{
 		{0xF1,0x02,0x00,0x20,0x00,0x08,0x6C,0xF6},}
 
 	p.rawsimulator_event_run = NewEvent(RAWSIMULATOR_RUN,p.config.UniqueId,"",
-	 "开始借助package testdatacreater进行测试，此包的作用是将一个临时的[]byte数据源river-node化")
+							   fmt.Sprintf("开始借助[%s]进行测试，此包的作用是将一个临时的[]byte数据源river-node化",p.Name()))
 
-	p.config.News_ByteSlice		= make(chan []byte)
+	p.config.News				= make(chan []byte)
 	p.stop						= make(chan struct{})
 	
 	return nil
@@ -101,7 +99,7 @@ func (p *RawSimulator)Run(){
 			default:
 				if i == len(p.sourceTable){/*time.Sleep(10000*time.Second);*/i = 0}
 
-				p.config.News_ByteSlice <- p.sourceTable[i]
+				p.config.News <- p.sourceTable[i]
 	
 				time.Sleep(p.config.StepSec)
 			}
@@ -112,15 +110,15 @@ func (p *RawSimulator)Run(){
 //作为数据源，这个方法到时有很多合理的使用场景
 func (p *RawSimulator)ProactiveDestruct(){
 	p.config.Events <-NewEvent(RAWSIMULATOR_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
-	 "注意，由于某些原因数据源模拟器主动调用了显式析构方法")
+	 				  fmt.Sprintf("注意，由于某些原因[%s]主动调用了显式析构方法",p.Name()))
 	p.stop <-struct{}{}
 }
 
 func (p *RawSimulator)reactiveDestruct(){
 	p.config.Events <-NewEvent(RAWSIMULATOR_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-	 "数据源模拟器触发了隐式析构方法")
+	 				  fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))
 
-	close(p.config.News_ByteSlice)
+	close(p.config.News)
 	close(p.stop) 
 }
 
@@ -131,5 +129,5 @@ func NewRawSimulator() NodeAbstract {
 
 func init() {
 	Register(RAWSIMULATOR_RIVERNODE_NAME, NewRawSimulator)
-	logger.Info("预加载完成，rawsimulator适配器已预加载至package river_node.Nodes结构内")
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内",RAWSIMULATOR_RIVERNODE_NAME))
 }

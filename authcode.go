@@ -14,7 +14,7 @@ import (
 
 
 
-const AUTHCODE_RIVERNODE_NAME = "authcode"
+const AUTHCODE_RIVERNODE_NAME = "authcode适配器"
 
 type AuthCodeConfig struct{
 	UniqueId 		  			string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
@@ -66,7 +66,7 @@ func (p *AuthCode)Name()string{
 
 func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 	if AuthCodeConfigAbs.Name() != AUTHCODE_RIVERNODE_NAME {
-		return errors.New("crc river_node init error, config must CRCConfig")
+		return errors.New(fmt.Sprintf("[%s] init error, config must AuthCodeConfig",p.Name()))
 	}
 
 
@@ -75,33 +75,33 @@ func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 
 
 	if c.UniqueId == "" {
-		return errors.New("authcode river_node init error, uniqueId is nil")
+		return errors.New(fmt.Sprintf("[%s] init error, uniqueId is nil",p.Name()))
 	}
 
 	if c.Events == nil || c.Errors == nil || c.Raws == nil{
-		return errors.New("authcode river_node init error, Events or Errors or Raws is nil")
+		return errors.New(fmt.Sprintf("[%s] init error, Events or Errors or Raws is nil",p.Name()))
 	}
 
 	if c.News_Encode != nil || c.News_Decode != nil{
-		return errors.New("authcode river-node init error, News_Encode and News_Decode must nil")
+		return errors.New(fmt.Sprintf("[%s] init error, News_Encode and News_Decode must nil",p.Name()))
 	}
 
 	if c.Mode != ENCODE&&c.Mode != DECODE {
-		return errors.New("authcode river-node init error, unknown mode") 
+		return errors.New(fmt.Sprintf("[%s] init error, unknown mode",p.Name())) 
 	}
 
 	if c.AuthCode_Key ==""{
-		return errors.New("authcode river-node init error, Salt is nil") 
+		return errors.New(fmt.Sprintf("[%s] init error, Salt is nil",p.Name())) 
 	}
 
 	//AuthCode_ExpirySec与AuthCode_DynamicKeyLen都可以为0，但是不推荐
 	
 	if c.Mode ==DECODE && (c.Limit_Decode ==0){
-		return errors.New("decode mode authcode river-node init error, Limit_Decode is nil") 
+		return errors.New(fmt.Sprintf("decode [%s] init error, Limit_Decode is nil",p.Name())) 
 	}
 
 	if c.Mode ==ENCODE && (c.Limit_Encode ==0){
-		return errors.New("encode mode authcode river-node init error, Limit_Encode is nil") 
+		return errors.New(fmt.Sprintf("encode [%s] init error, Limit_Encode is nil",p.Name())) 
 	}
 
 	
@@ -115,15 +115,15 @@ func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 
 	if p.config.Mode == ENCODE{
 		modeStr ="authcode为加密模式，将加密后的数据注入News_Encode管道"
-		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("authcode适配器开始运行，其UniqueId为%s, Mode为:%s",
-			   		  p.config.UniqueId, modeStr))
+		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("[%s]开始运行，其UniqueId为%s, Mode为:%s",
+			   		  p.Name(), p.config.UniqueId, modeStr))
 
 		p.config.News_Encode		= make(chan []byte)
 
 	}else if p.config.Mode == DECODE{
 		modeStr ="authcode为解密模式，将解密后的数据注入News_Decode管道"
-		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("authcode适配器开始运行，其UniqueId为%s, Mode为:%s",
-					  p.config.UniqueId, modeStr))
+		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("[%s]开始运行，其UniqueId为%s, Mode为:%s",
+					  p.Name(), p.config.UniqueId, modeStr))
 
 
 		p.config.News_Decode 		= make(chan []byte)
@@ -172,14 +172,14 @@ func (p *AuthCode)Run(){
 
 
 func (p *AuthCode)ProactiveDestruct(){
-	p.config.Events <-NewEvent(AUTHCODE_PROACTIVE_DESTRUCT,p.config.UniqueId,"","注意，由于某些原因authcode包主动调用了显式析构方法")
+	p.config.Events <-NewEvent(AUTHCODE_PROACTIVE_DESTRUCT,p.config.UniqueId,"",fmt.Sprintf("注意，由于某些原因[%s]主动调用了显式析构方法",p.Name()))
 	p.stop<-struct{}{}	
 }
 
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *AuthCode)reactiveDestruct(){
-	p.config.Events <-NewEvent(AUTHCODE_REACTIVE_DESTRUCT,p.config.UniqueId,"","authcode包触发了隐式析构方法")
+	p.config.Events <-NewEvent(AUTHCODE_REACTIVE_DESTRUCT,p.config.UniqueId,"",fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))
 
 	//析构数据源
 	close(p.stop)
@@ -203,7 +203,7 @@ func NewAuthCode() NodeAbstract {
 
 func init() {
 	Register(AUTHCODE_RIVERNODE_NAME, NewAuthCode)
-	logger.Info("预加载完成，AuthCode适配器已预加载至package river_node.RNodes结构内")
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.RNodes结构内",AUTHCODE_RIVERNODE_NAME))
 }
 
 /*------------以下是所需的功能方法-------------*/
@@ -212,15 +212,15 @@ func (p *AuthCode)encode(baits []byte){
 		p.countor++
 
 		if p.countor > p.config.Limit_Encode{
-			p.config.Errors <-NewError(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, err.Error(),
+			p.config.Errors <-NewError(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
 							fmt.Sprintf("AUTHCODE加密连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-							"次数为%d",p.countor,p.config.Limit_Encode))
+							"次数为%d,错误内容为%s",p.countor,p.config.Limit_Encode,err.Error()))
 			p.countor =0
 			p.config.Events <-p.event_fused
 		}else{
-			p.config.Errors <-NewError(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, err.Error(),
-				fmt.Sprintf("连续第%d次AUTHCODE加密失败，当前系统设定的最大连续失败次数为%d",
-				   p.countor, p.config.Limit_Encode))
+			p.config.Errors <-NewError(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
+				fmt.Sprintf("连续第%d次AUTHCODE加密失败，当前系统设定的最大连续失败次数为%d,错误内容为%s",
+				   p.countor, p.config.Limit_Encode,err.Error()))
 		}
 		
 	}else{
@@ -238,15 +238,15 @@ func (p *AuthCode)decode(baits []byte){
 		p.countor++
 
 		if p.countor > p.config.Limit_Decode{
-			p.config.Errors <-NewError(AUTHCODE_DECODE_FAIL, p.config.UniqueId, err.Error(),
+			p.config.Errors <-NewError(AUTHCODE_DECODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
 							fmt.Sprintf("AUTHCODE解密连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-							"次数为%d",p.countor,p.config.Limit_Decode))
+							"次数为%d,错误内容为%s",p.countor,p.config.Limit_Decode,err.Error()))
 			p.countor =0
 			p.config.Events <-p.event_fused
 		}else{
-			p.config.Errors <-NewError(AUTHCODE_DECODE_FAIL, p.config.UniqueId, err.Error(),
-				fmt.Sprintf("连续第%d次AUTHCODE解密失败，当前系统设定的最大连续失败次数为%d",
-				   p.countor, p.config.Limit_Decode))
+			p.config.Errors <-NewError(AUTHCODE_DECODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
+				fmt.Sprintf("连续第%d次AUTHCODE解密失败，当前系统设定的最大连续失败次数为%d,错误内容为%s",
+				   p.countor, p.config.Limit_Decode,err.Error()))
 		}
 		
 	}else{
