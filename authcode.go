@@ -97,11 +97,11 @@ func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 	//AuthCode_ExpirySec与AuthCode_DynamicKeyLen都可以为0，但是不推荐
 	
 	if c.Mode ==DECODE && (c.Limit_Decode ==0){
-		return errors.New(fmt.Sprintf("decode [%s] init error, Limit_Decode is nil",p.Name())) 
+		return errors.New(fmt.Sprintf("[decode %s] init error, Limit_Decode is nil",p.Name())) 
 	}
 
 	if c.Mode ==ENCODE && (c.Limit_Encode ==0){
-		return errors.New(fmt.Sprintf("encode [%s] init error, Limit_Encode is nil",p.Name())) 
+		return errors.New(fmt.Sprintf("[encode %s] init error, Limit_Encode is nil",p.Name())) 
 	}
 
 	
@@ -115,14 +115,14 @@ func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 
 	if p.config.Mode == ENCODE{
 		modeStr ="authcode为加密模式，将加密后的数据注入News_Encode管道"
-		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("[%s]开始运行，其UniqueId为%s, Mode为:%s",
+		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("[encode %s]开始运行，其UniqueId为%s, Mode为:%s",
 			   		  p.Name(), p.config.UniqueId, modeStr))
 
 		p.config.News_Encode		= make(chan []byte)
 
 	}else if p.config.Mode == DECODE{
 		modeStr ="authcode为解密模式，将解密后的数据注入News_Decode管道"
-		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("[%s]开始运行，其UniqueId为%s, Mode为:%s",
+		p.event_run = NewEvent(AUTHCODE_RUN,p.config.UniqueId,"",fmt.Sprintf("[decode %s]开始运行，其UniqueId为%s, Mode为:%s",
 					  p.Name(), p.config.UniqueId, modeStr))
 
 
@@ -213,20 +213,20 @@ func (p *AuthCode)encode(baits []byte){
 
 		if p.countor > p.config.Limit_Encode{
 			p.config.Errors <-NewError(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
-							fmt.Sprintf("AUTHCODE加密连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-							"次数为%d,错误内容为%s",p.countor,p.config.Limit_Encode,err.Error()))
+							fmt.Sprintf("[%s]连续%d次加密失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
+								"次数为%d,[报错内容为%s]",p.Name(),p.countor,p.config.Limit_Encode,err.Error()))
 			p.countor =0
 			p.config.Events <-p.event_fused
 		}else{
 			p.config.Errors <-NewError(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
-				fmt.Sprintf("连续第%d次AUTHCODE加密失败，当前系统设定的最大连续失败次数为%d,错误内容为%s",
-				   p.countor, p.config.Limit_Encode,err.Error()))
+							fmt.Sprintf("[%s]连续第%d次加密失败，当前系统设定的最大连续失败次数为%d,[报错内容为%s]",
+				   				p.Name(),p.countor, p.config.Limit_Encode,err.Error()))
 		}
 		
 	}else{
 		if p.countor !=0{
-			p.config.Events <-NewEvent(AUTHCODE_ENCODE_RECOVERED,p.config.UniqueId,"", fmt.Sprintf("已从第%d次AUTHCODE加密失败中恢复，"+
-							"当前系统设定的最大失败次数为%d",p.countor,p.config.Limit_Encode))
+			p.config.Events <-NewEvent(AUTHCODE_ENCODE_RECOVERED,p.config.UniqueId,"", fmt.Sprintf("[%s]已从第%d次加密失败中恢复，"+
+							"当前系统设定的最大失败次数为%d",p.Name(),p.countor,p.config.Limit_Encode))
 			p.countor =0
 		}
 		p.config.News_Encode <- res
@@ -239,20 +239,20 @@ func (p *AuthCode)decode(baits []byte){
 
 		if p.countor > p.config.Limit_Decode{
 			p.config.Errors <-NewError(AUTHCODE_DECODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
-							fmt.Sprintf("AUTHCODE解密连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-							"次数为%d,错误内容为%s",p.countor,p.config.Limit_Decode,err.Error()))
+							fmt.Sprintf("[%s]连续%d次解密失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
+								"次数为%d,[报错内容为%s]",p.Name(), p.countor,p.config.Limit_Decode,err.Error()))
 			p.countor =0
 			p.config.Events <-p.event_fused
 		}else{
 			p.config.Errors <-NewError(AUTHCODE_DECODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
-				fmt.Sprintf("连续第%d次AUTHCODE解密失败，当前系统设定的最大连续失败次数为%d,错误内容为%s",
-				   p.countor, p.config.Limit_Decode,err.Error()))
+							fmt.Sprintf("[%s]连续%d次解密失败，当前系统设定的最大连续失败次数为%d,[报错内容为%s]",
+				   				p.Name(), p.countor, p.config.Limit_Decode,err.Error()))
 		}
 		
 	}else{
 		if p.countor !=0{
-			p.config.Events <-NewEvent(AUTHCODE_DECODE_RECOVERED,p.config.UniqueId,"", fmt.Sprintf("已从第%d次AUTHCODE解密失败中恢复，"+
-							"当前系统设定的最大失败次数为%d",p.countor,p.config.Limit_Decode))
+			p.config.Events <-NewEvent(AUTHCODE_DECODE_RECOVERED,p.config.UniqueId,"", fmt.Sprintf("[%s]已从第%d次解密失败中恢复，"+
+							"当前系统设定的最大失败次数为%d",p.Name(),p.countor,p.config.Limit_Decode))
 			p.countor =0
 		}
 		p.config.News_Decode <- res

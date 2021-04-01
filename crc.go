@@ -146,7 +146,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	if p.config.Mode == FILTER{
 		modeStr ="crc校验模式，将通过的结果注入News_Filter管道，不通过的进行转化并注入Errors管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("[%s]开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
+			fmt.Sprintf("[filer %s]开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
 			   "大小端模式为:%s，校验起始下标为:%d",p.Name(),p.config.UniqueId, p.config.Limit_Filter, 
 			   modeStr, endianStr,p.config.StartIndex_Filter))
 
@@ -155,7 +155,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}else if p.config.Mode == ADDTAIL{
 		modeStr ="追加crc校验码模式，将追加后生成的modbus码注入News_AddTail管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("[%s]开始运行，其UniqueId为%s, Mode为:%s,大小端模式为:%s", p.Name(),
+			fmt.Sprintf("[addtail %s]开始运行，其UniqueId为%s, Mode为:%s,大小端模式为:%s", p.Name(),
 			   p.config.UniqueId, modeStr, endianStr))
 
 		p.config.News_AddTail 		= make(chan []byte)

@@ -13,22 +13,24 @@ import (
 const STAMPS_RIVERNODE_NAME = "stamps适配器"
 
 type StampsConfig struct{
-	UniqueId 	    string	/*其所属上层Conn的唯一识别标识*/
-	Events 	    	chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
-	Errors 		    chan error
+	UniqueId 	    			string	/*其所属上层Conn的唯一识别标识*/
+	Events 	    				chan Event /*发送给主进程的信号队列，就像Qt的信号与槽*/
+	Errors 		    			chan error
 	/** 分为三种，HEADS、TAILS、HEADSANDTAILS
 	 * 当是HEADANDTAILS模式，切len(stamp)>1时
 	 * 按照如下顺序拼接：
 	 * stamp1+raw(首部);raw+stamp2(尾部);stamp3+raw(首部);raw+stamp4(尾部);stamp5+raw(首部);....
 	 * 这样的首尾交替规律的拼接方式
 	 */
-	Mode 		    int 
-	AutoTimeStamp	bool
-	Breaking 	    []byte /*戳与数据间的分隔符，可以为nil*/
-	Stamps 		    [][]byte /*允许输入多个，会按顺序依次拼接*/
-	Raws 		    <-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Mode 		    			int 
+	AutoTimeStamp				bool
+	Breaking 	    			[]byte /*戳与数据间的分隔符，可以为nil*/
+	Stamps 		    			[][]byte /*允许输入多个，会按顺序依次拼接*/
+	Raws 		    			<-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-	News 		    chan []byte /*校验通过切去掉校验码的新切片*/
+	News_Heads 		    		chan []byte
+	News_Tails 		    		chan []byte
+	News_HeadsAndTails 		    chan []byte
 }
 
 func (p *StampsConfig)Name()string{
@@ -69,8 +71,12 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 		return errors.New(fmt.Sprintf("[%s] init error, Events or Errors is nil",p.Name()))
 	}
 
-	if c.Raws == nil || c.News !=nil{
-		return errors.New(fmt.Sprintf("[%s] init error, Raws is nil or News is not nil",p.Name()))
+	if c.Raws == nil {
+		return errors.New(fmt.Sprintf("[%s] init error, Raws is nil",p.Name()))
+	}
+
+	if c.News_Heads !=nil||c.News_Tails !=nil||c.News_HeadsAndTails !=nil{
+		return errors.New(fmt.Sprintf("[%s] init error, News_Heads or News_Tails or News_HeadsAndTails ",p.Name()))
 	}
 
 	if len(c.Breaking)<3{
@@ -103,16 +109,21 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 
 	if p.config.Mode == HEADS{
 		modeStr ="将某个或某些印章戳添加于数据头部"
+		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[heads %s]开始运行，"+
+						  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
+		p.config.News_Heads				=make(chan []byte)
 	}else if p.config.Mode == TAILS{
 		modeStr ="将某个或某些印章戳添加于数据尾部"
+		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[tails %s]开始运行，"+
+						  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
+		p.config.News_Tails				=make(chan []byte)
 	}else if p.config.Mode == HEADSANDTAILS{
 		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
+		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[headandtails %s]开始运行，"+
+						  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
+		p.config.News_HeadsAndTails		=make(chan []byte)	
 	}
 	
-	p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[%s]开始运行，"+
-				  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
-
-	p.config.News		=make(chan []byte)
 	p.stop				=make(chan struct{})
 
 	return nil
@@ -154,10 +165,18 @@ func (p *Stamps)ProactiveDestruct(){
 
 func (p *Stamps)reactiveDestruct(){
 	p.config.Events <-NewEvent(STAMPS_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))
+		fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))	
 
-	close(p.stop)	
-	close(p.config.News)
+	switch p.config.Mode{
+	case HEADS:
+		close(p.config.News_Heads)
+	case TAILS:
+		close(p.config.News_Tails)
+	case HEADSANDTAILS:
+		close(p.config.News_HeadsAndTails)
+	}
+
+	close(p.stop)
 }
 
 
@@ -190,7 +209,7 @@ func (p *Stamps)stampToHead(raw []byte){
 
 	p.bytesHandler.Write(raw)
 
-	p.config.News <-append([]byte{},p.bytesHandler.Bytes()...)
+	p.config.News_Heads <-append([]byte{},p.bytesHandler.Bytes()...)
 }
 
 func (p *Stamps)stampToTail(raw []byte){
@@ -207,7 +226,7 @@ func (p *Stamps)stampToTail(raw []byte){
 		p.bytesHandler.Write(stamp)
 	}
 
-	p.config.News <-append([]byte{},p.bytesHandler.Bytes()...)
+	p.config.News_Tails <-append([]byte{},p.bytesHandler.Bytes()...)
 }
 
 func (p *Stamps)stampToHeadAndTail(raw []byte){
@@ -233,7 +252,7 @@ func (p *Stamps)stampToHeadAndTail(raw []byte){
 
 	p.bytesHandler.Write(raw);    p.bytesHandler.Write(p.tailHandler.Bytes())
 
-	p.config.News <-append([]byte{}, p.bytesHandler.Bytes()...)
+	p.config.News_HeadsAndTails <-append([]byte{}, p.bytesHandler.Bytes()...)
 }
 
 

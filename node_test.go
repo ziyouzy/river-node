@@ -129,7 +129,7 @@ func TestInit(t *testing.T) {
         panic("test stamps fail")
     }else{
         go func(){
-            for byteslice := range stampsConfig.News{
+            for byteslice := range stampsConfig.News_Heads{
                 //fmt.Println(byteslice)
                 bl :=bytes.Split(byteslice,[]byte("/-/"))
 				fmt.Println(bl)
