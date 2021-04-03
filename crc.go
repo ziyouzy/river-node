@@ -51,8 +51,6 @@ type CRC struct{
 	countor 			int
 	event_run 			Event
 	event_fused 		Event
-
-	stop				chan struct{}
 }
 
 func (p *CRC)Name()string{
@@ -161,8 +159,6 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 		p.config.News_AddTail 		= make(chan []byte)
 	}
 
-	p.stop 				= make(chan struct{})
-
 	return nil
 }
 
@@ -178,10 +174,11 @@ func (p *CRC)Run(){
 			for {
 				select{
 				case mb, ok := <-p.config.Raws:
-					if !ok{ return }
-					p.filter(mb)
-				case <-p.stop:
-					return
+					if !ok{
+						return
+					}else{
+						p.filter(mb)
+					}
 				}
 			}
 		}()
@@ -191,10 +188,11 @@ func (p *CRC)Run(){
 			for {
 				select{
 				case raw, ok := <-p.config.Raws:
-					if !ok{ return }
-					p.addTail(raw)
-				case <-p.stop:
-					return
+					if !ok{
+						return
+					}else{
+						p.addTail(raw)
+					}
 				}
 			}
 		}()
@@ -202,12 +200,6 @@ func (p *CRC)Run(){
 
 }
 
-func (p *CRC)ProactiveDestruct(){
-	p.config.Events <-NewEvent(CRC_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
-					fmt.Sprintf("注意，由于某些原因%s主动调用了显式析构方法", p.Name()))
-	p.stop<-struct{}{}
-	
-}
 
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
@@ -216,7 +208,6 @@ func (p *CRC)reactiveDestruct(){
 					fmt.Sprintf("[%s]触发了隐式析构方法", p.Name()))
 
 	//析构数据源
-	close(p.stop)
 
 	switch p.config.Mode{
 	case FILTER:

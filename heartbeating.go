@@ -53,7 +53,6 @@ type HeartBeating struct{
 	event_run 			Event
 	event_fused 		Event
 
-	stop 				chan struct{}
 }
 
 func (p *HeartBeating)Name()string{
@@ -84,8 +83,6 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 	 					  fmt.Sprintf("[%s]开始运行，其UniqueId为%s, 最大超时秒数为%v, 最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
 						   	 p.Name(), p.config.UniqueId, p.config.TimeoutSec, p.config.Limit))
 	p.event_fused = NewEvent(HEARTBREATING_FUSED,c.UniqueId, "","")
-
-	p.stop =make(chan struct{})
 	
 	return nil
 }
@@ -145,21 +142,11 @@ func (p *HeartBeating)Run(){
 				}
 
 				p.timer.Reset(p.config.TimeoutSec)
-
-			case <-p.stop:
-				return
 			}
 		}
 	}()		
 }
 
-
-func (p *HeartBeating)ProactiveDestruct(){
-	p.config.Events <-NewEvent(HEARTBREATING_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
-		    		fmt.Sprintf("注意，由于某些原因[%s]主动调用了显式析构方法",p.Name()))
-
-	p.stop<-struct{}{}	
-}
 
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
@@ -168,7 +155,6 @@ func (p *HeartBeating)reactiveDestruct(){
 	p.config.Events <-NewEvent(HEARTBREATING_REACTIVE_DESTRUCT,p.config.UniqueId,"",
 		  			fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))
 	_ = p.timer.Stop()
-	close(p.stop)
 	
 	//close(p.News)此适配器业务逻辑无需News管道
 

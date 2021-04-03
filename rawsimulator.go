@@ -129,5 +129,5 @@ func NewRawSimulator() NodeAbstract {
 
 func init() {
 	Register(RAWSIMULATOR_RIVERNODE_NAME, NewRawSimulator)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内",RAWSIMULATOR_RIVERNODE_NAME))
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内",p.Name())
 }

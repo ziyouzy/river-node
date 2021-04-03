@@ -56,8 +56,6 @@ type AuthCode struct{
 	countor 			int
 	event_run 			Event
 	event_fused 		Event
-
-	stop				chan struct{}
 }
 
 func (p *AuthCode)Name()string{
@@ -129,8 +127,6 @@ func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 		p.config.News_Decode 		= make(chan []byte)
 	}
 
-	p.stop 				= make(chan struct{})
-
 	return nil
 }
 
@@ -147,10 +143,11 @@ func (p *AuthCode)Run(){
 			for {
 				select{
 				case raw, ok := <-p.config.Raws:
-					if !ok{ return }
-					p.encode(raw)
-				case <-p.stop:
-					return
+					if !ok{
+						return
+					}else{
+						p.encode(raw)
+					}
 				}
 			}
 		}()
@@ -160,10 +157,11 @@ func (p *AuthCode)Run(){
 			for {
 				select{
 				case raw, ok := <-p.config.Raws:
-					if !ok{ return }
-					p.decode(raw)
-				case <-p.stop:
-					return
+					if !ok{
+						return
+					}else{
+						p.decode(raw)
+					}
 				}
 			}
 		}()
@@ -171,19 +169,12 @@ func (p *AuthCode)Run(){
 }
 
 
-func (p *AuthCode)ProactiveDestruct(){
-	p.config.Events <-NewEvent(AUTHCODE_PROACTIVE_DESTRUCT,p.config.UniqueId,"",fmt.Sprintf("注意，由于某些原因[%s]主动调用了显式析构方法",p.Name()))
-	p.stop<-struct{}{}	
-}
-
 //被动 - reactive
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *AuthCode)reactiveDestruct(){
 	p.config.Events <-NewEvent(AUTHCODE_REACTIVE_DESTRUCT,p.config.UniqueId,"",fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))
 
 	//析构数据源
-	close(p.stop)
-
 	p.authcode.CloseSafe()
 
 	switch p.config.Mode{
