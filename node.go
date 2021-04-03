@@ -36,9 +36,8 @@ type NodeAbstractFunc func() NodeAbstract
 
 type NodeAbstract interface {
 	Name() string
-	Construct(config Config) error
 	Run()
-	reactiveDestruct()   
+	Construct(config Config) error
 }
 
 

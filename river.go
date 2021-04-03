@@ -6,5 +6,5 @@ package river_node
 type RiverAbstract interface {
 	Name() string
 	Run()
-	ProactiveDestruct()   
+	Destruct()   
 }
