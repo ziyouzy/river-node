@@ -14,7 +14,7 @@ import (
 
 
 
-const AUTHCODE_RIVERNODE_NAME = "authcode适配器"
+const AUTHCODE_NODE_NAME = "authcode适配器"
 
 type AuthCodeConfig struct{
 	UniqueId 		  			string	/*其所属上层数据通道(如Conn)的唯一识别标识*/
@@ -44,7 +44,7 @@ type AuthCodeConfig struct{
 
 
 func (p *AuthCodeConfig)Name()string{
-	return AUTHCODE_RIVERNODE_NAME
+	return AUTHCODE_NODE_NAME
 }
 
 
@@ -59,11 +59,11 @@ type AuthCode struct{
 }
 
 func (p *AuthCode)Name()string{
-	return AUTHCODE_RIVERNODE_NAME
+	return AUTHCODE_NODE_NAME
 }
 
 func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
-	if AuthCodeConfigAbs.Name() != AUTHCODE_RIVERNODE_NAME {
+	if AuthCodeConfigAbs.Name() != AUTHCODE_NODE_NAME {
 		return errors.New(fmt.Sprintf("[%s] init error, config must AuthCodeConfig",p.Name()))
 	}
 
@@ -193,8 +193,8 @@ func NewAuthCode() NodeAbstract {
 
 
 func init() {
-	Register(AUTHCODE_RIVERNODE_NAME, NewAuthCode)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.RNodes结构内",AUTHCODE_RIVERNODE_NAME))
+	Register(AUTHCODE_NODE_NAME, NewAuthCode)
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.RNodes结构内",AUTHCODE_NODE_NAME))
 }
 
 /*------------以下是所需的功能方法-------------*/

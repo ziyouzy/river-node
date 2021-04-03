@@ -12,7 +12,7 @@ import (
 )
 
 
-const CRC_RIVERNODE_NAME = "crc校验适配器"
+const CRC_NODE_NAME = "crc校验适配器"
 
 
 type CRCConfig struct{
@@ -38,7 +38,7 @@ type CRCConfig struct{
 
 
 func (p *CRCConfig)Name()string{
-	return CRC_RIVERNODE_NAME
+	return CRC_NODE_NAME
 }
 
 
@@ -54,11 +54,11 @@ type CRC struct{
 }
 
 func (p *CRC)Name()string{
-	return CRC_RIVERNODE_NAME
+	return CRC_NODE_NAME
 }
 
 func (p *CRC)Construct(CRCConfigAbs Config) error{
-	if CRCConfigAbs.Name() != CRC_RIVERNODE_NAME {
+	if CRCConfigAbs.Name() != CRC_NODE_NAME {
 		return errors.New(fmt.Sprintf("[%s] init error, config must CRCConfig", p.Name()))
 	}
 
@@ -225,8 +225,8 @@ func NewCRC() NodeAbstract {
 
 
 func init() {
-	Register(CRC_RIVERNODE_NAME, NewCRC)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.RNodes结构内", CRC_RIVERNODE_NAME))
+	Register(CRC_NODE_NAME, NewCRC)
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.RNodes结构内", CRC_NODE_NAME))
 }
 
 

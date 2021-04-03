@@ -10,7 +10,7 @@ import (
 	"errors"
 )
 
-const STAMPS_RIVERNODE_NAME = "stamps适配器"
+const STAMPS_NODE_NAME = "stamps适配器"
 
 type StampsConfig struct{
 	UniqueId 	    			string	/*其所属上层Conn的唯一识别标识*/
@@ -34,7 +34,7 @@ type StampsConfig struct{
 }
 
 func (p *StampsConfig)Name()string{
-	return STAMPS_RIVERNODE_NAME
+	return STAMPS_NODE_NAME
 }
 
 
@@ -50,11 +50,11 @@ type Stamps struct{
 }
 
 func (p *Stamps)Name()string{
-	return STAMPS_RIVERNODE_NAME
+	return STAMPS_NODE_NAME
 }
 
 func (p *Stamps)Construct(stampsConfigAbs Config) error{
-	if stampsConfigAbs.Name() != STAMPS_RIVERNODE_NAME {
+	if stampsConfigAbs.Name() != STAMPS_NODE_NAME {
 		return errors.New(fmt.Sprintf("[%s] init error, config must StampsConfig",p.Name()))
 	}
 
@@ -207,8 +207,8 @@ func NewStamps() NodeAbstract {
 
 
 func init() {
-	Register(STAMPS_RIVERNODE_NAME, NewStamps)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内",STAMPS_RIVERNODE_NAME))
+	Register(STAMPS_NODE_NAME, NewStamps)
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内",STAMPS_NODE_NAME))
 }
 
 

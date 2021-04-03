@@ -38,25 +38,8 @@ func TestInit(t *testing.T) {
     
 //-----------
 
-    rawSimulatorAbsf   := RegisteredNodes[RAWSIMULATOR_RIVERNODE_NAME]
-    rawSimulator       := rawSimulatorAbsf()
-    rawSimulatorConfig := &RawSimulatorConfig{
-
-        UniqueId:                   "testPkg",
-        Events:                     Events,
-
-        StepSec:		            1 * time.Second,
-    }
-
-    if err := rawSimulator.Construct(rawSimulatorConfig); err != nil{
-        logger.Info(fmt.Sprintf("test [%s] init fail: %s",rawSimulator.Name(),err.Error()))
-        panic("rawSimulator fail")
-    }
-
-//-----------
-
     hbRaws               = make(chan struct{})
-    heartBeatingAbsf     := RegisteredNodes[HB_RIVERNODE_NAME]
+    heartBeatingAbsf     := RegisteredNodes[HB_NODE_NAME]
     heartBeating         := heartBeatingAbsf()
     heartBeatingConfig   := &HeartBeatingConfig{
 
@@ -77,7 +60,7 @@ func TestInit(t *testing.T) {
 
 //-----------
     crcRaws              = make(chan []byte)
-    crcAbsf              := RegisteredNodes[CRC_RIVERNODE_NAME]
+    crcAbsf              := RegisteredNodes[CRC_NODE_NAME]
     crc                  := crcAbsf()
     crcConfig            := &CRCConfig{
 
@@ -97,18 +80,11 @@ func TestInit(t *testing.T) {
     if err := crc.Construct(crcConfig); err != nil {
         logger.Info("test crc-river-node init fail:"+err.Error())
         panic("test crc fail")
-    }else{
-        go func(){
-            for bytes := range rawSimulatorConfig.News{
-                hbRaws <- struct{}{}
-                crcRaws <- bytes
-            }
-        }()
     }
 
 //----------
 
-    stampsAbsf           := RegisteredNodes[STAMPS_RIVERNODE_NAME]
+    stampsAbsf           := RegisteredNodes[STAMPS_NODE_NAME]
     stamps               := stampsAbsf()
     stampsConfig         := &StampsConfig{
        
@@ -127,37 +103,51 @@ func TestInit(t *testing.T) {
     if err := stamps.Construct(stampsConfig); err != nil {
         logger.Info("test stamps-river-node init fail:"+err.Error())
         panic("test stamps fail")
-    }else{
-        go func(){
-            for byteslice := range stampsConfig.News_Heads{
-                //fmt.Println(byteslice)
-                bl :=bytes.Split(byteslice,[]byte("/-/"))
-				fmt.Println(bl)
-                fmt.Println("fin of stamps news is:", StringTimeStamp(bl[0],true),string(bl[1]),fmt.Sprintf("%x",bl[2]),string(bl[3]),
-                fmt.Sprintf("%x",bl[4]),fmt.Sprintf("%x",bl[5]))
-            }
-        }()
     }
 
 //--------------------
 
-
-
-
-      
-    stamps.Run()
-    crc.Run()
-
     /**
      * 只要基于数据流动框架思路进行合理的设计，
      * 各个river-node的Init()与Run()执行的先后顺序并不会有什么先后要求
-     * 还是那句话，需要执行析构的时候才会体现出会不会出现泄露的问题
      */
-    rawSimulator.Run()
-
+    stamps.Run()
+    crc.Run()
     heartBeating.Run()
-    
 
+
+	//  sourceTable = [][]byte{
+	// 	[]byte{0x01, 0x02, 0x03, 0x04,},
+	// 	[]byte{0x05, 0x06, 0x07, 0x08,},
+	// 	[]byte{0x01, 0x04, 0x09, 0x13,},
+	// 	[]byte{0xF1,0x05,0x00,0x00,0xFF,0x00,},
+	// 	[]byte{0xF1,0x05,0x00,0x00,0x00,0x00,},}
+
+	sourceTable := [][]byte{{0xF1,0x01,0x00,0x00,0x00,0x08, 0x29,0x3C},
+                   {0xF1,0x02,0x00,0x20,0x00,0x08,0x6C,0xF6},}
+
+    go func(){
+        for i:=0;i<=len(sourceTable);i++{
+            if i == len(sourceTable){
+                i = 0
+            }
+
+            hbRaws <- struct{}{}
+            crcRaws <- sourceTable[i]
+            time.Sleep(time.Second)
+        }
+    }()
+
+    go func(){
+        for byteslice := range stampsConfig.News_Heads{
+            //fmt.Println(byteslice)
+            bl :=bytes.Split(byteslice,[]byte("/-/"))
+            fmt.Println(bl)
+            fmt.Println("fin of stamps news is:", StringTimeStamp(bl[0],true),string(bl[1]),fmt.Sprintf("%x",bl[2]),string(bl[3]),
+            fmt.Sprintf("%x",bl[4]),fmt.Sprintf("%x",bl[5]))
+        }
+    }()
+    
     select{}
 }
 

@@ -15,7 +15,7 @@ import (
 	"errors"
 )
 
-const HB_RIVERNODE_NAME = "heartbeating心跳包适配器"
+const HB_NODE_NAME = "heartbeating心跳包适配器"
 
 type HeartBeatingConfig struct{
 	UniqueId 		string	/*其所属上层Conn的唯一识别标识*/
@@ -36,7 +36,7 @@ type HeartBeatingConfig struct{
 }
 
 func (p *HeartBeatingConfig)Name()string{
-	return HB_RIVERNODE_NAME
+	return HB_NODE_NAME
 }
 
 
@@ -56,11 +56,11 @@ type HeartBeating struct{
 }
 
 func (p *HeartBeating)Name()string{
-	return HB_RIVERNODE_NAME
+	return HB_NODE_NAME
 }
 
 func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
-	if heartBeatingConfigAbs.Name() != HB_RIVERNODE_NAME {
+	if heartBeatingConfigAbs.Name() != HB_NODE_NAME {
 		return errors.New(fmt.Sprintf("[%s] init error, config must HeartBreatingConfig", p.Name()))
 	}
 
@@ -166,8 +166,8 @@ func NewHeartbBreating() NodeAbstract {
 
 
 func init() {
-	Register(HB_RIVERNODE_NAME, NewHeartbBreating)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内", HB_RIVERNODE_NAME))
+	Register(HB_NODE_NAME, NewHeartbBreating)
+	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内", HB_NODE_NAME))
 }
 	
 

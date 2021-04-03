@@ -17,8 +17,6 @@ package river_node
 
 
 
-
-
 var RegisteredNodes = make(map[string]NodeAbstractFunc)
 func Register(Name string, F NodeAbstractFunc) {
 	if RegisteredNodes[Name] != nil {
@@ -32,21 +30,27 @@ func Register(Name string, F NodeAbstractFunc) {
 	RegisteredNodes[Name] = F
 } 
 
+
 type NodeAbstractFunc func() NodeAbstract
+
+
 type NodeAbstract interface {
 	Name() string
 	Construct(config Config) error
 	Run()
-
 	reactiveDestruct()   
 }
+
+
 
 
 /** 这里使用了继承
  * 这样一来就可以把RiverNode作为一个切片储存了，同时他还能具有map的键值对特性
  * 这其实是一种设计模式
  */
-type RiverNode struct{
+type Node struct{
 	Name  string
 	NodeAbstract
 }
+
+

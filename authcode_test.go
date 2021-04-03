@@ -44,7 +44,7 @@ func TestAuthCode(t *testing.T) {
 	}()
 	//-----------
 	
-	authCodeAbsf   := RegisteredNodes[AUTHCODE_RIVERNODE_NAME]
+	authCodeAbsf   := RegisteredNodes[AUTHCODE_NODE_NAME]
 	authCode       := authCodeAbsf()
 	authCodeConfig := &AuthCodeConfig{
 	
