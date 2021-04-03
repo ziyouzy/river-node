@@ -30,7 +30,7 @@ type HeartBeatingConfig struct{
 	TimeoutSec 		time.Duration
 	Limit  			int
 
-	Raws 			<-chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Raws 			chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
 		 
 	//News 此包不会生成新的管道数据
 }

@@ -23,7 +23,7 @@ type CRCConfig struct{
 	Mode 			  			int /*define.FILTER或ADDTAIL*/
 	Encoding 	  			    bool
 	
-	Raws 		      			<-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Raws 		      			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	News_AddTail				chan []byte
 	//----------

@@ -26,7 +26,7 @@ type StampsConfig struct{
 	AutoTimeStamp				bool
 	Breaking 	    			[]byte /*戳与数据间的分隔符，可以为nil*/
 	Stamps 		    			[][]byte /*允许输入多个，会按顺序依次拼接*/
-	Raws 		    			<-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Raws 		    			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	News_Heads 		    		chan []byte
 	News_Tails 		    		chan []byte
@@ -136,20 +136,41 @@ func (p *Stamps)Run(){
 	switch p.config.Mode{
 	case HEADS:
 		go func(){
-			for raw := range p.config.Raws{
-				p.stampToHead(raw)
+			defer p.reactiveDestruct()
+			for{
+				select{
+				case raw, ok := <-p.config.Raws:
+					if !ok{ return }
+					p.stampToHead(raw)
+				case <-p.stop:
+					return
+				}
 			}
 		}()
 	case TAILS:
 		go func(){
-			for raw := range p.config.Raws{
-				p.stampToTail(raw)
+			defer p.reactiveDestruct()
+			for{
+				select{
+				case raw, ok := <-p.config.Raws:
+					if !ok{ return }
+					p.stampToTail(raw)
+				case <-p.stop:
+					return
+				}
 			}
 		}()
 	case HEADSANDTAILS:
 		go func(){
-			for raw := range p.config.Raws{
-				p.stampToHeadAndTail(raw)
+			defer p.reactiveDestruct()
+			for{
+				select{
+				case raw, ok := <-p.config.Raws:
+					if !ok{ return }
+					p.stampToHeadAndTail(raw)
+				case <-p.stop:
+					return
+				}
 			}
 		}()
 	}
