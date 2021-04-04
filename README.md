@@ -45,6 +45,7 @@ https://baike.baidu.com/item/MVC%E6%A1%86%E6%9E%B6/9241230?fromtitle=mvc&fromid=
 **比如sender_tousrio808定1秒发送询码给usrio808设备，usrio808会立刻发送回码**  
 **要注意接收方不再是sender_tousrio808对象，而是换成了receiver_fromusrio808，接收后就完成了一个消息循环**  
 **于是receiver_fromusrio808对象就可以承担起循环后的“清点”工作，方法就是给他内部放置一个heartbeating**  
+
 **2021年3月12日11点53分:**  
 **错误的数据必须转化为error，且两者不能并存**  
 **正确的数据可以产生event，且两者可以并存**  
