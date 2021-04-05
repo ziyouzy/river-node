@@ -8,17 +8,10 @@ package river_node
 
 import(
 	"fmt"
+	"time"
 )
 
-const (
-	ANOTHEREXAMPLE_TEST1 = 999999
-	ANOTHEREXAMPLE_TEST2 = 999998
-	ANOTHEREXAMPLE_TEST3 = 999997
-	ANOTHEREXAMPLE_ERR = 999996
-)
 
-//package river-node占用编号范围是0~199
-//已知目前usrio-808占用编码范围200~219
 const (
 	HEARTBREATING_RUN = iota
 	HEARTBREATING_FUSED 
@@ -51,7 +44,7 @@ const (
 type Event interface{
 	CodeString()string
 	Code() int
-	Description()(int, string,string,string,string)
+	Description()(int, string,string,string,string,int64)
 	ToError() error
 }
 
@@ -77,16 +70,20 @@ func NewEvent(code int, uniqueId string, raw string, commit string) Event{
 		code: 		code,
 		data:		raw,
 		commit:		commit,
+
+		timeStamp:	time.Now().UnixNano(),
 	}
 	return e
 }
 
 
 type eve struct{
-	uniqueId string
-	code 	 int
-	data	 string
-	commit 	 string
+	uniqueId 	string
+	code 	 	int
+	data	 	string
+	commit 	 	string
+
+	timeStamp	int64
 }
 
 func (p *eve)Code()int{
@@ -154,8 +151,8 @@ func (p *eve)CodeString()string{
 	}
 }
 
-func (p *eve)Description()(int, string, string, string, string){
-	return p.Code(), p.CodeString(), p.uniqueId, p.data, p.commit
+func (p *eve)Description()(int, string, string, string, string, int64){
+	return p.Code(), p.CodeString(), p.uniqueId, p.data, p.commit, p.timeStamp
 }
 
 func (p *eve)ToError()error{
@@ -170,7 +167,7 @@ type err struct{
 } 
 
 func (p *err)Error() string {
-	c, cs, uid, data, commit := p.Event.Description()
+	c, cs, uid, data, commit, t:= p.Event.Description()
 	return fmt.Sprintf("[ERROR] Code: %d, CodeString: %s, UniqueId: %s, DataString: %s, "+
-			  "Commit: %s", c, cs, uid, data, commit)
+			  "Commit: %s, Time: %s", c, cs, uid, data, commit, time.Unix(0, t).Format("2006-01-02 15:04:05.000000000"))
 }

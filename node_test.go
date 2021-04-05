@@ -160,8 +160,8 @@ func eventRecriver(t *testing.T){
             case eve := <-Events:
                 /*最重要的是，触发某个事件后，接下来去做什么*/
                 fmt.Println("Recriver-event:",eve.CodeString())
-                c, cs, uid, data, commit :=eve.Description() 
-                fmt.Println("Recriver-event-details:", c, cs, uid, data, commit)
+                c, cs, uid, data, commit,time:=eve.Description() 
+                fmt.Println("Recriver-event-details:", c, cs, uid, data, commit,time)
                 fmt.Println("Recriver-event-toError:",eve.ToError().Error()) 
             case err := <-Errors:
                 fmt.Println("Recriver-error:",err.Error())

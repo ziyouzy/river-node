@@ -176,13 +176,6 @@ func (p *Stamps)Run(){
 	}
 }
 
-func (p *Stamps)ProactiveDestruct(){
-	p.config.Events <-NewEvent(STAMPS_PROACTIVE_DESTRUCT,p.config.UniqueId,"",
-		    fmt.Sprintf("注意，由于某些原因[%s]主动调用了显式析构方法", p.Name()))
-
-	p.stop<-struct{}{}	
-}
-
 
 func (p *Stamps)reactiveDestruct(){
 	p.config.Events <-NewEvent(STAMPS_REACTIVE_DESTRUCT,p.config.UniqueId,"",
