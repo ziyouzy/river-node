@@ -23,7 +23,7 @@ type AuthCodeConfig struct{
 
 	Mode 			  			int /*define.ENCODE或DECODE*/
 	
-	Raws 		      			<-chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
+	Raws 		      			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
 	AuthCode_Key				string
 	AuthCode_DynamicKeyLen		int

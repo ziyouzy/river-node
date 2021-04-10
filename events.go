@@ -159,15 +159,4 @@ func (p *eve)ToError()error{
 	return &err{p}
 }
 
-//------------
 
-
-type err struct{
-	Event
-} 
-
-func (p *err)Error() string {
-	c, cs, uid, data, commit, t:= p.Event.Description()
-	return fmt.Sprintf("[ERROR] Code: %d, CodeString: %s, UniqueId: %s, DataString: %s, "+
-			  "Commit: %s, Time: %s", c, cs, uid, data, commit, time.Unix(0, t).Format("2006-01-02 15:04:05.000000000"))
-}
