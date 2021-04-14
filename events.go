@@ -43,7 +43,7 @@ const (
 
 type Event interface{
 	CodeString()string
-	Code() int
+	//CodeInt() int
 	Description()(int, string,string,string,string,int64)
 	ToError() error
 }
@@ -66,32 +66,32 @@ func NewEvent(code int, uniqueId string, raw string, commit string) Event{
 	}
 
 	e :=&eve{
-		uniqueId: 	uniqueId,
-		code: 		code,
-		data:		raw,
-		commit:		commit,
+		UniqueId: 	uniqueId,
+		Code: 		code,
+		Data:		raw,
+		Commit:		commit,
 
-		timeStamp:	time.Now().UnixNano(),
+		TimeStamp:	time.Now().UnixNano(),
 	}
 	return e
 }
 
 
 type eve struct{
-	uniqueId 	string
-	code 	 	int
-	data	 	string
-	commit 	 	string
+	UniqueId 	string
+	Code 	 	int
+	Data	 	string
+	Commit 	 	string
 
-	timeStamp	int64
+	TimeStamp	int64
 }
 
-func (p *eve)Code()int{
-	return p.code
-}
+// func (p *eve)CodeInt()int{
+// 	return p.Code
+// }
 
 func (p *eve)CodeString()string{
-	switch p.Code(){
+	switch p.Code{
 	case HEARTBREATING_RUN:
 		return "HEARTBREATING_RUN" 
 	case HEARTBREATING_RECOVERED:
@@ -152,7 +152,7 @@ func (p *eve)CodeString()string{
 }
 
 func (p *eve)Description()(int, string, string, string, string, int64){
-	return p.Code(), p.CodeString(), p.uniqueId, p.data, p.commit, p.timeStamp
+	return p.Code, p.CodeString(), p.UniqueId, p.Data, p.Commit, p.TimeStamp
 }
 
 func (p *eve)ToError()error{
