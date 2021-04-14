@@ -43,7 +43,7 @@ const (
 
 type Event interface{
 	CodeString()string
-	//CodeInt() int
+	CodeInt() int
 	Description()(int, string,string,string,string,int64)
 	ToError() error
 }
@@ -86,9 +86,9 @@ type eve struct{
 	TimeStamp	int64
 }
 
-// func (p *eve)CodeInt()int{
-// 	return p.Code
-// }
+func (p *eve)CodeInt()int{
+	return p.Code
+}
 
 func (p *eve)CodeString()string{
 	switch p.Code{
