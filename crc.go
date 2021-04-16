@@ -59,7 +59,7 @@ func (p *CRC)Name()string{
 
 func (p *CRC)Construct(CRCConfigAbs Config) error{
 	if CRCConfigAbs.Name() != CRC_NODE_NAME {
-		return errors.New(fmt.Sprintf("[%s] init error, config must CRCConfig", p.Name()))
+		return errors.New(fmt.Sprintf("[river-node type:%s] init error, config must CRCConfig", p.Name()))
 	}
 
 
@@ -68,25 +68,25 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 
 
 	if c.UniqueId == "" {
-		return errors.New(fmt.Sprintf("[%s] init error, uniqueId is nil", p.Name()))
+		return errors.New(fmt.Sprintf("[river-node type:%s] init error, uniqueId is nil", p.Name()))
 	}
 
 	if c.Events == nil || c.Errors == nil || c.Raws == nil{
-		return errors.New(fmt.Sprintf("[%s] init error, Events or Errors or Raws is nil", p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, Events or Errors or Raws is nil", p.config.UniqueId))
 	}
 
 	if c.News_Filter != nil || c.News_AddTail != nil{
-		return errors.New(fmt.Sprintf("[%s] init error, News_Filter or News_AddTail is not nil", p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, News_Filter or News_AddTail is not nil", p.config.UniqueId))
 	}
 
 
 	if c.Mode != FILTER&&c.Mode != ADDTAIL {
-		return errors.New(fmt.Sprintf("[%s] init error, unknown mode", p.Name())) 
+		return errors.New(fmt.Sprintf("[uid:%s] init error, unknown mode", p.config.UniqueId)) 
 	}
 
 	
 	if c.Mode ==FILTER && (c.Limit_Filter ==0 || c.MinLen_Filter ==0){
-		return errors.New(fmt.Sprintf("filter [%s] init error, Limit_Filter or MinLen_Filter is nil", p.Name())) 
+		return errors.New(fmt.Sprintf("[filter-uid:%s] init error, Limit_Filter or MinLen_Filter is nil", p.config.UniqueId)) 
 	}
 
 	/*FilterStartIndex允许为0且默认为0*/
@@ -144,19 +144,18 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	if p.config.Mode == FILTER{
 		modeStr ="crc校验模式，将通过的结果注入News_Filter管道，不通过的进行转化并注入Errors管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("[filer %s]开始运行，其UniqueId为%s, 最大校验失败次数为%d, Mode为:%s,"+
-			   "大小端模式为:%s，校验起始下标为:%d",p.Name(),p.config.UniqueId, p.config.Limit_Filter, 
-			   modeStr, endianStr,p.config.StartIndex_Filter))
+			fmt.Sprintf("[uid:%s;mode:%s]开始运行，最大校验失败次数为%d,大小端模式为:%s,校验起始下标为:%d",
+			p.config.UniqueId, modeStr, p.config.Limit_Filter, endianStr,p.config.StartIndex_Filter))
 
-		p.config.News_Filter		= make(chan []byte)
+		p.config.News_Filter = make(chan []byte)
 
 	}else if p.config.Mode == ADDTAIL{
 		modeStr ="追加crc校验码模式，将追加后生成的modbus码注入News_AddTail管道"
 		p.event_run = NewEvent(CRC_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("[addtail %s]开始运行，其UniqueId为%s, Mode为:%s,大小端模式为:%s", p.Name(),
-			   p.config.UniqueId, modeStr, endianStr))
+			fmt.Sprintf("[uid:%s;mode:%s]开始运行，大小端模式为:%s", 
+			p.config.UniqueId, modeStr, endianStr))
 
-		p.config.News_AddTail 		= make(chan []byte)
+		p.config.News_AddTail = make(chan []byte)
 	}
 
 	return nil
@@ -205,7 +204,7 @@ func (p *CRC)Run(){
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *CRC)reactiveDestruct(){
 	p.config.Events <-NewEvent(CRC_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-					fmt.Sprintf("[%s]触发了隐式析构方法", p.Name()))
+					fmt.Sprintf("[uid:%s]触发了隐式析构方法", p.config.UniqueId))
 
 	//析构数据源
 
@@ -226,14 +225,16 @@ func NewCRC() NodeAbstract {
 
 func init() {
 	Register(CRC_NODE_NAME, NewCRC)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.RNodes结构内", CRC_NODE_NAME))
+	logger.Info(fmt.Sprintf("预加载完成，[river-node type:%s]已预加载至package river_node.RNodes结构内", 
+		CRC_NODE_NAME))
 }
 
 
 func (p *CRC)filter(mb []byte){
 	if len(mb) < p.config.MinLen_Filter{
 		p.config.Errors <-NewError(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
-						fmt.Sprintf("待验证的modbus码不足所设定的最少位数：%d位，",p.config.MinLen_Filter))
+			fmt.Sprintf("[uid:%s]待验证的modbus码不足所设定的最少位数：%d位，",
+			p.config.UniqueId, p.config.MinLen_Filter))
 		return
 	}
 
@@ -243,8 +244,8 @@ func (p *CRC)filter(mb []byte){
 		if p.countor != 0{
 			p.countor = 0
 			p.config.Events <-NewEvent(CRC_RECOVERED, p.config.UniqueId, "",
-					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
-					   p.countor,p.config.Limit_Filter))
+				fmt.Sprintf("[uid:%s]已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d",
+				p.config.UniqueId, p.countor, p.config.Limit_Filter))
 		}
 
 		p.bytesHandler.Reset()
@@ -254,8 +255,8 @@ func (p *CRC)filter(mb []byte){
 	}else if bytes.Equal(p.checkCRC16(raw[p.config.StartIndex_Filter:], !p.config.Encoding),crc){
 		if p.countor != 0{
 			p.config.Events <-NewEvent(CRC_RECOVERED,p.config.UniqueId,hex.EncodeToString(raw),
-					fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,但是当前"+
-					   "这一字节数组存在大小端颠倒的问题",p.countor,p.config.Limit_Filter))
+				fmt.Sprintf("[uid:%s]已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,但是当前"+
+				"这一字节数组存在大小端颠倒的问题",p.config.UniqueId, p.countor, p.config.Limit_Filter))
 			p.countor = 0
 		}
 
@@ -268,14 +269,14 @@ func (p *CRC)filter(mb []byte){
 	}else if p.countor < p.config.Limit_Filter{
 		p.countor++
 		p.config.Errors <-NewError(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
-				fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
-				   p.countor, p.config.Limit_Filter))
+				fmt.Sprintf("[uid:%s]连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
+				p.config.UniqueId, p.countor, p.config.Limit_Filter))
 
 		// 未通过校验的数据(错误数据)不再放入任何管道
 	}else{
 		p.config.Errors <-NewError(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
-				fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
-				"次数为%d",p.countor,p.config.Limit_Filter))
+				fmt.Sprintf("[uid:%s]CRC验证连续%d次失败，已超过系统设定的最大次数，系统设定的最大连续失败"+
+				"次数为%d",p.config.UniqueId, p.countor,p.config.Limit_Filter))
 		p.countor =0
 
 		// 未通过校验的数据(错误数据)不再放入任何管道)
@@ -289,7 +290,7 @@ func (p *CRC)addTail(raw []byte){
 	var tail []byte
 	if tail = p.checkCRC16(raw, p.config.Encoding); tail ==nil{
 		p.config.Errors <-NewError(CRC_NULLTAIL, p.config.UniqueId, hex.EncodeToString(raw), 
-						fmt.Sprintf("ADDTAIL模式的[%s]生成了空的校验码,问题校验码", p.Name()))
+			fmt.Sprintf("[uid:%s](ADDTAIL模式)生成了空的校验码,问题校验码", p.config.UniqueId))
 		return
 	}
 

@@ -61,27 +61,30 @@ func (p *HeartBeating)Name()string{
 
 func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 	if heartBeatingConfigAbs.Name() != HB_NODE_NAME {
-		return errors.New(fmt.Sprintf("[%s] init error, config must HeartBreatingConfig", p.Name()))
+		return errors.New(fmt.Sprintf("[river-node type:%s] init error, config must HeartBreatingConfig", p.Name()))
 	}
 
 
 	v := reflect.ValueOf(heartBeatingConfigAbs)
 	c := v.Interface().(*HeartBeatingConfig)
 
+	if c.UniqueId == ""{
+		return errors.New(fmt.Sprintf("[river-node type:%s] init error, uniqueId is nil", p.Name()))
+	}
 
-	if c.TimeoutSec == (0 * time.Second) || c.UniqueId == "" || c.Limit ==0{
-		return errors.New(fmt.Sprintf("[%s] init error, timeout or uniqueId or timeoutlimit is nil", p.Name()))
+	if c.TimeoutSec == (0 * time.Second) || c.Limit ==0{
+		return errors.New(fmt.Sprintf("[uid:%s] init error, timeout or timeoutlimit is nil", c.UniqueId))
 	}
 
 	if c.Events == nil || c.Errors == nil || c.Raws == nil{
-		return errors.New(fmt.Sprintf("[%s] init error, Raws or Events or Errors Raws is nil", p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, Raws or Events or Errors Raws is nil", c.UniqueId))
 	}
 	
 	p.config = c
 
-	p.event_run = NewEvent(HEARTBREATING_RUN,p.config.UniqueId,"",
-	 					  fmt.Sprintf("[%s]开始运行，其UniqueId为%s, 最大超时秒数为%v, 最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
-						   	 p.Name(), p.config.UniqueId, p.config.TimeoutSec, p.config.Limit))
+	p.event_run = NewEvent(HEARTBREATING_RUN,p.config.UniqueId,"",fmt.Sprintf("[uid:%s]开始运行，"+
+				  "最大超时秒数为%v, 最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
+				  p.config.UniqueId, p.config.TimeoutSec, p.config.Limit))
 	p.event_fused = NewEvent(HEARTBREATING_FUSED,c.UniqueId, "","")
 	
 	return nil
@@ -104,20 +107,20 @@ func (p *HeartBeating)Run(){
 				if len(p.config.Raws)>0{
 					_ = <-p.config.Raws
 					p.config.Errors <-NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
-							fmt.Sprintf("[%s]发生了“计时器超时下的数据临界事件“,Raws管道已正常排空，uid为%s",
-							   p.Name(),p.config.UniqueId)) 
+						fmt.Sprintf("[uid:%s]发生了“计时器超时下的数据临界事件“,Raws管道已正常排空",
+						p.config.UniqueId)) 
 				}
 
 				if p.countor < p.config.Limit{
 					p.timer.Reset(p.config.TimeoutSec)
 					p.countor++
 					p.config.Errors <-NewError(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
-						    fmt.Sprintf("连续第%d次超时，当前系统设定的最大超时次数为%d",
-						       p.countor,p.config.Limit))
+						fmt.Sprintf("[uid:%s]连续第%d次超时，当前系统设定的最大超时次数为%d",
+						p.config.UniqueId,p.countor,p.config.Limit))
 				}else{
 					p.config.Errors <-NewError(HEARTBREATING_FUSED,p.config.UniqueId,"",
-							fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，系统设定的最大超时"+
-							   "次数为%d",p.countor,p.config.Limit))
+						fmt.Sprintf("[uid:%s]连续第%d次超时已超过系统设定的最大超时次数，"+
+						"系统设定的最大超时次数为%d",p.config.UniqueId, p.countor, p.config.Limit))
 					p.countor =0
 					p.config.Events <-p.event_fused
 					return
@@ -130,15 +133,15 @@ func (p *HeartBeating)Run(){
 				if p.timer.Stop() == TIMER_STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
 					p.config.Errors <-NewError(HEARTBREATING_TIMERLIMITED,p.config.UniqueId,"",
-							fmt.Sprintf("[%s]发生了“计时器未超时下的数据临界事件”,计时器自身的管道已正常排空，uid为%s",
-							   p.Name(),p.config.UniqueId)) 
+						fmt.Sprintf("[uid:%s]发生了“计时器未超时下的数据临界事件”,"+
+						"计时器自身的管道已正常排空",p.config.UniqueId)) 
 				}
 				
 				if p.countor != 0{
 					p.countor =0
 					p.config.Events <-NewEvent(HEARTBREATING_RECOVERED,p.config.UniqueId,"",
-						    fmt.Sprintf("已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
-							   p.countor,p.config.Limit))
+						fmt.Sprintf("[uid:%s]已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
+						p.config.UniqueId, p.countor, p.config.Limit))
 				}
 
 				p.timer.Reset(p.config.TimeoutSec)
@@ -153,7 +156,7 @@ func (p *HeartBeating)Run(){
 func (p *HeartBeating)reactiveDestruct(){
 	//析构操作在前，管道内就算有新事件也不需要了
 	p.config.Events <-NewEvent(HEARTBREATING_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		  			fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))
+		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))
 	_ = p.timer.Stop()
 	
 	//close(p.News)此适配器业务逻辑无需News管道
@@ -167,7 +170,7 @@ func NewHeartbBreating() NodeAbstract {
 
 func init() {
 	Register(HB_NODE_NAME, NewHeartbBreating)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内", HB_NODE_NAME))
+	logger.Info(fmt.Sprintf("预加载完成，[river-node type:%s]已预加载至package river_node.Nodes结构内", HB_NODE_NAME))
 }
 	
 

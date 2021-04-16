@@ -55,40 +55,43 @@ func (p *Stamps)Name()string{
 
 func (p *Stamps)Construct(stampsConfigAbs Config) error{
 	if stampsConfigAbs.Name() != STAMPS_NODE_NAME {
-		return errors.New(fmt.Sprintf("[%s] init error, config must StampsConfig",p.Name()))
+		return errors.New(fmt.Sprintf("[river-node type:%s] init error, config must StampsConfig",p.Name()))
 	}
 
 
 	v := reflect.ValueOf(stampsConfigAbs)
 	c := v.Interface().(*StampsConfig)
 
+	if c.UniqueId == ""{
+		return errors.New(fmt.Sprintf("[river-node type:%s] init error, uniqueId is nil", p.Name()))
+	}
 
 	if c.Breaking == nil || c.Stamps == nil {
-		return errors.New(fmt.Sprintf("[%s] init error, breaking or stamps is nil",p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, breaking or stamps is nil", c.UniqueId))
 	}
 
 	if c.Events == nil || c.Errors ==nil{
-		return errors.New(fmt.Sprintf("[%s] init error, Events or Errors is nil",p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, Events or Errors is nil", c.UniqueId))
 	}
 
 	if c.Raws == nil {
-		return errors.New(fmt.Sprintf("[%s] init error, Raws is nil",p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, Raws is nil", c.UniqueId))
 	}
 
 	if c.News_Heads !=nil||c.News_Tails !=nil||c.News_HeadsAndTails !=nil{
-		return errors.New(fmt.Sprintf("[%s] init error, News_Heads or News_Tails or News_HeadsAndTails ",p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, News_Heads or News_Tails or News_HeadsAndTails ", c.UniqueId))
 	}
 
 	if len(c.Breaking)<3{
-		return errors.New(fmt.Sprintf("[%s] init error, Breaking is to short, please len(Breaking) >= 3",p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, Breaking is to short, please len(Breaking) >= 3",c.UniqueId))
 	}
 
 	if c.Mode != HEADSANDTAILS && c.Mode != HEADS && c.Mode != TAILS{
-		return errors.New(fmt.Sprintf("[%s] init error, unknown mode",p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, unknown mode", c.UniqueId))
 	}
 	
 	if c.Mode == HEADSANDTAILS && len(c.Stamps)<2{
-		return errors.New(fmt.Sprintf("[%s] init error, mode is headandtail but only one stamp",p.Name()))
+		return errors.New(fmt.Sprintf("[uid:%s] init error, mode is headandtail but only one stamp", c.UniqueId))
 	}
 
 	p.config = c
@@ -109,22 +112,22 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 
 	if p.config.Mode == HEADS{
 		modeStr ="将某个或某些印章戳添加于数据头部"
-		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[heads %s]开始运行，"+
-						  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
-		p.config.News_Heads				=make(chan []byte)
+		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",
+			fmt.Sprintf("[uid:%s;mode:%s,%s]开始运行",p.config.UniqueId, modeStr,timeStampStr))
+		p.config.News_Heads	=make(chan []byte)
 	}else if p.config.Mode == TAILS{
 		modeStr ="将某个或某些印章戳添加于数据尾部"
-		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[tails %s]开始运行，"+
-						  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
+		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",
+			fmt.Sprintf("[uid:%s;mode:%s,%s]开始运行",p.config.UniqueId, modeStr,timeStampStr))
 		p.config.News_Tails				=make(chan []byte)
 	}else if p.config.Mode == HEADSANDTAILS{
 		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
-		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",fmt.Sprintf("[headandtails %s]开始运行，"+
-						  "其UniqueId为%s,Mode为%s并且%s。",p.Name(), p.config.UniqueId, modeStr,timeStampStr))
-		p.config.News_HeadsAndTails		=make(chan []byte)	
+		p.event_run = NewEvent(STAMPS_RUN, p.config.UniqueId, "",
+			fmt.Sprintf("[uid:%s;mode:%s,%s]开始运行",p.config.UniqueId, modeStr,timeStampStr))
+		p.config.News_HeadsAndTails	=make(chan []byte)	
 	}
 	
-	p.stop				=make(chan struct{})
+	p.stop	=make(chan struct{})
 
 	return nil
 }
@@ -179,7 +182,7 @@ func (p *Stamps)Run(){
 
 func (p *Stamps)reactiveDestruct(){
 	p.config.Events <-NewEvent(STAMPS_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[%s]触发了隐式析构方法",p.Name()))	
+		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))	
 
 	switch p.config.Mode{
 	case HEADS:
@@ -201,7 +204,7 @@ func NewStamps() NodeAbstract {
 
 func init() {
 	Register(STAMPS_NODE_NAME, NewStamps)
-	logger.Info(fmt.Sprintf("预加载完成，[%s]已预加载至package river_node.Nodes结构内",STAMPS_NODE_NAME))
+	logger.Info(fmt.Sprintf("预加载完成，[river-node type:%s]已预加载至package river_node.Nodes结构内",STAMPS_NODE_NAME))
 }
 
 
