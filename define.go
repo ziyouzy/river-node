@@ -32,3 +32,10 @@ const (
 	DECODE
 )
 //authcode end
+
+//baitsfilter
+const (
+	KEEPHEAD = iota
+	DROPHEAD
+)
+//baitsfilter
