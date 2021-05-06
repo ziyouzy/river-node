@@ -13,13 +13,17 @@ import(
 
 
 const (
+	//拿hb举例最重要的是HEARTBREATING_TIMERLIMITED，如果main层检测到这个信号后必然会显式析构其所属的river
+	//而不是说这个hb直接去析构其所属的river
+	//main会先通过uid锁定问题river，再去析构他
+	//hb做的仅仅是发送此信号给main层，而不会去做其他的事(如析构自身或者析构其所在的river)	
 	HEARTBREATING_RUN = iota
-	HEARTBREATING_FUSED 
-	HEARTBREATING_TIMEOUT //一般为ERROR
-	HEARTBREATING_TIMERLIMITED //一般为ERROR
-	HEARTBREATING_RECOVERED
-	HEARTBREATING_REACTIVE_DESTRUCT
-	HEARTBREATING_PROACTIVE_DESTRUCT
+	HEARTBREATING_FUSED //很重要，需要告诉给系统这个错误，或许他应该改名为FAIL，让他的语义代表一种节点的“panic”即可
+	HEARTBREATING_TIMEOUT //为返回给系统看的ERROR，只需要计入日志
+	HEARTBREATING_TIMERLIMITED //为返回给系统看的ERROR，只需要计入日志，但是他会连带触发HEARTBREATING_FUSED
+	HEARTBREATING_RECOVERED //这是成功，理论上不需要告诉系统成功只需要告诉系统失败，同时这个东西也没必要告诉用户，所以他肯能会被砍掉了
+	HEARTBREATING_REACTIVE_DESTRUCT //这其实也是返回给系统的成功，系统不需要，但是对于用户，river层的这种析构事件才会有些意义
+	HEARTBREATING_PROACTIVE_DESTRUCT //不存在这个
 	CRC_RUN
 	CRC_FUSED 
 	CRC_UPSIDEDOWN //一般为SIGNAL
