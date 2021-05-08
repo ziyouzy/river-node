@@ -19,7 +19,7 @@ import (
 
 /*主线程是event与error的统一管理管道*/
 var (
-    Events  chan Event
+    Events  chan EventAbs
     Errors  chan error
 )
 
@@ -32,7 +32,7 @@ var (
 func TestInit(t *testing.T) {
     defer logger.Destory()
 
-    Events  = make(chan Event)
+    Events  = make(chan EventAbs)
     Errors  = make(chan error)
     eventRecriver(t)
     
@@ -72,7 +72,6 @@ func TestInit(t *testing.T) {
         Encoding:                   LITTLEENDDIAN,
         Limit_Filter:               20,
         StartIndex_Filter:          0,
-        MinLen_Filter:              4, 
 
         Raws:                       crcRaws, /*从主线程发来的信号队列，就像Qt的信号与槽*/               
     }
@@ -159,10 +158,11 @@ func eventRecriver(t *testing.T){
             select{
             case eve := <-Events:
                 /*最重要的是，触发某个事件后，接下来去做什么*/
-                fmt.Println("Recriver-event:",eve.CodeString())
-                c, cs, uid, data, commit,time:=eve.Description() 
-                fmt.Println("Recriver-event-details:", c, cs, uid, data, commit,time)
-                fmt.Println("Recriver-event-toError:",eve.ToError().Error()) 
+            //     fmt.Println("Recriver-event:",eve.CodeString())
+            //     c, cs, uid, data, commit,time:=eve.Description() 
+            //     fmt.Println("Recriver-event-details:", c, cs, uid, data, commit,time)
+            //     fmt.Println("Recriver-event-toError:",eve.Error()) 
+            _ =eve
             case err := <-Errors:
                 fmt.Println("Recriver-error:",err.Error())
                 //实战中这里会进行日志的记录
