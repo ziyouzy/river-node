@@ -59,8 +59,7 @@ func (p *BaitsFilter)Construct(BaitsFilterConfigAbs Config) error{
 	if BaitsFilterConfigAbs.Name() != BAITSFILTER_NODE_NAME {
 		return errors.New(
 			fmt.Sprintf("[river-node type:%s] init error, config must BaitsFilterConfig",
-			p.Name())
-		)
+			p.Name()))
 	}
 
 	v := reflect.ValueOf(BaitsFilterConfigAbs)
@@ -69,34 +68,29 @@ func (p *BaitsFilter)Construct(BaitsFilterConfigAbs Config) error{
 	if c.UniqueId == "" {
 		return errors.New(
 			fmt.Sprintf("[river-node type:%s] init error, uniqueId is nil",
-			p.Name())
-		)
+			p.Name()))
 	}
 
 	if c.Events == nil || c.Errors == nil || c.Raws == nil{
 		return errors.New(
 			fmt.Sprintf("[uid:%s] init error, Events or Errors or Raws is nil",
-			c.UniqueId)
-		)
+			c.UniqueId))
 	}
 
 	if c.News_KeepHead != nil || c.News_DropHead != nil{
 		return errors.New(
 			fmt.Sprintf("[uid:%s] init error, News_KeepHead and News_DropHead must nil",
-			c.UniqueId)
-		)
+			c.UniqueId))
 	}
 
 	if c.Mode != KEEPHEAD&&c.Mode != DROPHEAD {
 		return errors.New(
-			fmt.Sprintf("[uid:%s] init error, unknown mode",c.UniqueId)
-		) 
+			fmt.Sprintf("[uid:%s] init error, unknown mode",c.UniqueId)) 
 	}
 
 	if c.Len_min>c.Len_max{
 		return errors.New(
-			fmt.Sprintf("[uid:%s] init error, len_min > len_max!!!",c.UniqueId)
-		) 
+			fmt.Sprintf("[uid:%s] init error, len_min > len_max!!!",c.UniqueId)) 
 	}
 
 	p.config = c	
@@ -120,14 +114,12 @@ func (p *BaitsFilter)Run(){
 		modeStr ="baitsfilter所适配的模式将保留用来判定/识别的head，数据会注入News_KeepHead管道"
 		p.config.Events <-NewEvent(
 			BAITSFILTER_RUN,p.config.UniqueId,"",fmt.Sprintf("[uid:%s;mode:%s]开始运行",
-			p.config.UniqueId, modeStr)
-		)
+			p.config.UniqueId, modeStr))
 	}else if p.config.Mode == DROPHEAD{
 		modeStr ="baitsfilter所适配的模式将丢弃用来判定/识别的head，数据会注入News_DropHead管道"
 		p.config.Events <-NewEvent(
 			BAITSFILTER_RUN,p.config.UniqueId,"",fmt.Sprintf("[uid:%s;mode:%s]开始运行", 
-			p.config.UniqueId, modeStr)
-		)
+			p.config.UniqueId, modeStr))
 	}
 
 	switch p.config.Mode{
@@ -177,8 +169,7 @@ func (p *BaitsFilter)reactiveDestruct(){
 
 	p.config.Events <-NewEvent(
 		BAITSFILTER_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId)
-	)
+		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))
 }
 
 
@@ -192,8 +183,7 @@ func init() {
 	Register(BAITSFILTER_NODE_NAME, NewBaitsFilter)
 	logger.Info(
 		fmt.Sprintf("预加载完成，[river-node type:%s]已预加载至package river_node.RNodes结构内",
-		BAITSFILTER_NODE_NAME)
-	)
+		BAITSFILTER_NODE_NAME))
 }
 
 /*------------以下是所需的功能方法-------------*/
@@ -209,9 +199,8 @@ func (p *BaitsFilter)keepHead(baits []byte){
 	}
 
 	p.config.Errors <-fmt.Errorf(
-		"%v",NewEvent(BAITSFILTER_HEADUNDEFINE, p.config.UniqueId, fmt.Sprintf("%x",baits),
-		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits))
-	)
+		"%v",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
+		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits)))
 
 }
 
@@ -229,9 +218,8 @@ func (p *BaitsFilter)dropHead(baits []byte){
 	}
 
 	p.config.Errors <-fmt.Errorf(
-		"%v",NewEvent(BAITSFILTER_HEADUNDEFINE, p.config.UniqueId, fmt.Sprintf("%x",baits),
-		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits))
-	)
+		"%v",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
+		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits)))
 }
 
 func (p *BaitsFilter)lenAuth(len int)bool{
@@ -244,8 +232,7 @@ func (p *BaitsFilter)lenAuth(len int)bool{
 			"%v", NewEvent(BAITSFILTER_LENAUTHFAIL,p.config.UniqueId,"", 
 			fmt.Sprintf("[uid:%s]发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
 			"最大长度为%d,然而baits长度为%d",p.config.UniqueId, 
-			p.config.Len_min, p.config.Len_max, len))
-		)
+			p.config.Len_min, p.config.Len_max, len)))
 		return false
 	}
 }
