@@ -38,27 +38,6 @@ func TestInit(t *testing.T) {
     
 //-----------
 
-    hbRaws               = make(chan struct{})
-    heartBeatingAbsf     := RegisteredNodes[HB_NODE_NAME]
-    heartBeating         := heartBeatingAbsf()
-    heartBeatingConfig   := &HeartBeatingConfig{
-
-        UniqueId:                   "testPkg",
-        Events:                     Events,
-        Errors:                     Errors,
-
-        TimeoutSec:                 3 * time.Second,
-        Limit:                      3,
-        Raws:                       hbRaws,
-
-    }
-
-    if err := heartBeating.Construct(heartBeatingConfig); err != nil {
-        logger.Info("test heartbeating-river-node init fail:"+err.Error())
-        panic("test heartbeating fail")
-    } 
-
-//-----------
     crcRaws              = make(chan []byte)
     crcAbsf              := RegisteredNodes[CRC_NODE_NAME]
     crc                  := crcAbsf()
@@ -104,14 +83,35 @@ func TestInit(t *testing.T) {
         panic("test stamps fail")
     }
 
+
+//-----------
+
+    heartBeatingAbsf     := RegisteredNodes[HB_NODE_NAME]
+    heartBeating         := heartBeatingAbsf()
+    heartBeatingConfig   := &HeartBeatingConfig{
+
+        UniqueId:                   "testPkg",
+        Events:                     Events,
+        Errors:                     Errors,
+
+        TimeoutSec:                 8 * time.Second,
+        Limit:                      5,
+        Raws:                       stampsConfig.News_Heads,
+    }
+
+    if err := heartBeating.Construct(heartBeatingConfig); err != nil {
+        logger.Info("test heartbeating-river-node init fail:"+err.Error())
+        panic("test heartbeating fail")
+    } 
+
 //--------------------
 
     /**
      * 只要基于数据流动框架思路进行合理的设计，
      * 各个river-node的Init()与Run()执行的先后顺序并不会有什么先后要求
      */
-    stamps.Run()
     crc.Run()
+    stamps.Run()
     heartBeating.Run()
 
 
@@ -131,14 +131,13 @@ func TestInit(t *testing.T) {
                 i = 0
             }
 
-            hbRaws <- struct{}{}
             crcRaws <- sourceTable[i]
-            time.Sleep(time.Second)
+            time.Sleep(30*time.Second)
         }
     }()
 
     go func(){
-        for byteslice := range stampsConfig.News_Heads{
+        for byteslice := range heartBeatingConfig.News{
             //fmt.Println(byteslice)
             bl :=bytes.Split(byteslice,[]byte("/-/"))
             fmt.Println(bl)

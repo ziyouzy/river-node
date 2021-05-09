@@ -5,6 +5,8 @@ const (
 	TIMER_STOPAFTEREXPIRE = false
 )
 
+//----
+
 //crc
 const (
 	BIGENDDIAN = true

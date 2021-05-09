@@ -22,15 +22,11 @@ type HeartBeatingConfig struct{
 	Events 			chan EventAbs /*发送给主进程的信号队列，就像Qt的信号与槽*/
 	Errors 			chan error
 
-	/** 虽然是面向[]byte的适配器，但是并不需要[]byte做任何操作
-	 * 所以在这里遵循golang的设计哲学
-	 * 使用struct{}作为事件的传递介质
-	 */
+	Raws			chan []byte
+	News			chan []byte
 
 	TimeoutSec 		time.Duration
 	Limit  			int
-
-	Raws 			chan struct{} /*从主线程发来的信号队列，就像Qt的信号与槽*/
 		 
 	//News 此包虽然不会生成新的管道数据，但是必须作为river中最后一个管道
 }
@@ -48,11 +44,9 @@ type HeartBeating struct{
 	timer 				*time.Timer
 	config 				*HeartBeatingConfig
 
-
 	countor 			int
 
 	warpError_Panich 	error
-
 }
 
 func (p *HeartBeating)Name()string{
@@ -91,6 +85,8 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 	p.config = c
 
 	p.warpError_Panich = fmt.Errorf("%w",NewEvent(HEARTBREATING_PANICH,c.UniqueId, "",""))
+
+	p.config.News = make(chan []byte)
 	
 	return nil
 }
@@ -142,8 +138,10 @@ func (p *HeartBeating)Run(){
 				}
 
 			//心跳包未超时
-			case _, ok :=<-p.config.Raws:
+			case baits, ok :=<-p.config.Raws:
 				if !ok { return }
+				p.config.News<-baits
+
 				/*Reset一个timer前必须先正确的关闭它*/
 				if p.timer.Stop() == TIMER_STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
@@ -173,14 +171,13 @@ func (p *HeartBeating)Run(){
 //被动析构是检测到Raws被上层关闭后的响应式析构操作
 func (p *HeartBeating)reactiveDestruct(){
 	//析构操作在前，管道内就算有新事件也不需要了
+	_ = p.timer.Stop()
+	
+	close(p.config.News)
+
 	p.config.Events <-NewEvent(
 		HEARTBREATING_REACTIVE_DESTRUCT,p.config.UniqueId,"",
 		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))
-
-	_ = p.timer.Stop()
-	
-	//close(p.News)此适配器业务逻辑无需News管道
-
 }
 
 func NewHeartbBreating() NodeAbstract {
