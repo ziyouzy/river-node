@@ -1,4 +1,7 @@
-/*对进行river-node适配封装*/
+//此包的特殊之处在于，虽然错误次数无上限，但是所有过滤失败的内容都会返回%w类的错误而非%v
+//作为一个很底层的river-node但是他往往都会与最上层的main层进行对接
+
+//这是为了处理应对诸如“新usrio808发来连接后的首条信息这样的事件”
 
 package river_node
 
@@ -198,7 +201,7 @@ func (p *BaitsFilter)keepHead(baits []byte){
 	}
 
 	p.config.Errors <-fmt.Errorf(
-		"%v",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
+		"%w",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
 		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits)))
 
 }
@@ -217,7 +220,7 @@ func (p *BaitsFilter)dropHead(baits []byte){
 	}
 
 	p.config.Errors <-fmt.Errorf(
-		"%v",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
+		"%w",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
 		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits)))
 }
 
@@ -228,7 +231,7 @@ func (p *BaitsFilter)lenAuth(len int)bool{
 		return true
 	}else{
 		p.config.Errors <-fmt.Errorf(
-			"%v", NewEvent(BAITSFILTER_LENAUTHFAIL,p.config.UniqueId,"", 
+			"%w", NewEvent(BAITSFILTER_LENAUTHFAIL,p.config.UniqueId,"", 
 			fmt.Sprintf("[uid:%s]发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
 			"最大长度为%d,然而baits长度为%d",p.config.UniqueId, 
 			p.config.Len_min, p.config.Len_max, len)))
