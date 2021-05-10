@@ -44,6 +44,7 @@ type Stamps struct{
 	tailHandler		*bytes.Buffer
 	config 			*StampsConfig
 
+	//和baitsfilter类似，不会造成Panich级别的事件
 	stop			chan struct{}
 }
 

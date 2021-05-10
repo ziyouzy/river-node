@@ -241,12 +241,10 @@ func (p *CRC)filter(mb []byte){
 	//不该存在这一基于长度的判定，这是baitsfilter的职责内容
 	// if len(mb) < p.config.MinLen_Filter{
 
-	// 	event := NewEvent(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
+	// 	p.config.Errors<-fmt.Errorf("%v",NewEvent(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
 	// 		fmt.Sprintf("[uid:%s]待验证的modbus码不足所设定的最少位数：%d位，",
-	// 		p.config.UniqueId, p.config.MinLen_Filter)
-	// 	)
+	// 		p.config.UniqueId, p.config.MinLen_Filter)))
 	
-	// 	p.config.Errors <-fmt.Errorf("%w",event)
 	// 	return
 	// }
 

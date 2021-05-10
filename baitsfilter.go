@@ -95,7 +95,6 @@ func (p *BaitsFilter)Construct(BaitsFilterConfigAbs Config) error{
 
 	p.config = c	
 
-	//p.warpError_Panich = fmt.Errorf("%w",NewEvent(BAITSFILTER_PANICH, c.UniqueId, "", ""))
 
 	if p.config.Mode == KEEPHEAD{
 		p.config.News_KeepHead = make(chan []byte)
