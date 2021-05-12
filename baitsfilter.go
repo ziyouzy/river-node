@@ -115,13 +115,13 @@ func (p *BaitsFilter)Run(){
 	if p.config.Mode == KEEPHEAD{
 		modeStr ="baitsfilter所适配的模式将保留用来判定/识别的head，数据会注入News_KeepHead管道"
 		p.config.Events <-NewEvent(
-			BAITSFILTER_RUN,p.config.UniqueId,"",fmt.Sprintf("[uid:%s;mode:%s]开始运行",
-			p.config.UniqueId, modeStr))
+			BAITSFILTER_RUN,p.config.UniqueId,"",nil,
+			fmt.Sprintf("[mode:%s]节点开始运行",modeStr))
 	}else if p.config.Mode == DROPHEAD{
 		modeStr ="baitsfilter所适配的模式将丢弃用来判定/识别的head，数据会注入News_DropHead管道"
 		p.config.Events <-NewEvent(
-			BAITSFILTER_RUN,p.config.UniqueId,"",fmt.Sprintf("[uid:%s;mode:%s]开始运行", 
-			p.config.UniqueId, modeStr))
+			BAITSFILTER_RUN,p.config.UniqueId,"",nil,
+			fmt.Sprintf("[mode:%s]节点开始运行", modeStr))
 	}
 
 	switch p.config.Mode{
@@ -170,8 +170,8 @@ func (p *BaitsFilter)reactiveDestruct(){
 	}
 
 	p.config.Events <-NewEvent(
-		BAITSFILTER_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))
+		BAITSFILTER_REACTIVE_DESTRUCT,p.config.UniqueId,"",nil,
+		"触发了隐式析构方法")
 }
 
 
@@ -201,8 +201,8 @@ func (p *BaitsFilter)keepHead(baits []byte){
 	}
 
 	p.config.Errors <-fmt.Errorf(
-		"%w",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
-		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits)))
+		"%w",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),nil,
+		"发现了报头未知的Baits"))
 
 }
 
@@ -220,8 +220,8 @@ func (p *BaitsFilter)dropHead(baits []byte){
 	}
 
 	p.config.Errors <-fmt.Errorf(
-		"%w",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
-		fmt.Sprintf("[uid:%s]发现了报头未知的Baits:%x", p.config.UniqueId, baits)))
+		"%w",NewEvent(BAITSFILTER_HEADAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),nil,
+		"发现了报头未知的Baits"))
 }
 
 func (p *BaitsFilter)lenAuth(len int)bool{
@@ -231,10 +231,12 @@ func (p *BaitsFilter)lenAuth(len int)bool{
 		return true
 	}else{
 		p.config.Errors <-fmt.Errorf(
-			"%w", NewEvent(BAITSFILTER_LENAUTHFAIL,p.config.UniqueId,"", 
-			fmt.Sprintf("[uid:%s]发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
-			"最大长度为%d,然而baits长度为%d",p.config.UniqueId, 
+			"%w", NewEvent(BAITSFILTER_LENAUTHFAIL, p.config.UniqueId, "", nil, 
+
+			fmt.Sprintf("发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
+			"最大长度为%d,然而baits长度为%d",
 			p.config.Len_min, p.config.Len_max, len)))
+
 		return false
 	}
 }

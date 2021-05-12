@@ -144,18 +144,18 @@ func (p *Stamps)Run(){
 	if p.config.Mode == HEADS{
 		modeStr ="将某个或某些印章戳添加于数据头部"
 		p.config.Events <-NewEvent(
-			STAMPS_RUN, p.config.UniqueId, "", fmt.Sprintf("[uid:%s;mode:%s,%s]开始运行",
-			p.config.UniqueId, modeStr,timeStampStr))
+			STAMPS_RUN, p.config.UniqueId, "", nil,
+			fmt.Sprintf("[mode:%s,%s]节点开始运行", modeStr, timeStampStr))
 	}else if p.config.Mode == TAILS{
 		modeStr ="将某个或某些印章戳添加于数据尾部"
 		p.config.Events <-NewEvent(
-			STAMPS_RUN, p.config.UniqueId, "", fmt.Sprintf("[uid:%s;mode:%s,%s]开始运行",
-			p.config.UniqueId, modeStr,timeStampStr))
+			STAMPS_RUN, p.config.UniqueId, "", nil,
+			fmt.Sprintf("[mode:%s,%s]节点开始运行", modeStr, timeStampStr))
 	}else if p.config.Mode == HEADSANDTAILS{
 		modeStr ="将某些印章戳按照奇偶顺序依次添加于数据头部与尾部"
 		p.config.Events <-NewEvent(
-			STAMPS_RUN, p.config.UniqueId, "", fmt.Sprintf("[uid:%s;mode:%s,%s]开始运行",
-			p.config.UniqueId, modeStr,timeStampStr))
+			STAMPS_RUN, p.config.UniqueId, "", nil,
+			fmt.Sprintf("[mode:%s,%s]节点开始运行", modeStr, timeStampStr))
 	}
 
 	switch p.config.Mode{
@@ -216,8 +216,8 @@ func (p *Stamps)reactiveDestruct(){
 	close(p.stop)
 
 	p.config.Events <-NewEvent(
-		STAMPS_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))	
+		STAMPS_REACTIVE_DESTRUCT,p.config.UniqueId,"",nil,
+		"触发了隐式析构方法")	
 }
 
 

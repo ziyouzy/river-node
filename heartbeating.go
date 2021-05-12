@@ -84,7 +84,8 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 	
 	p.config = c
 
-	p.warpError_Panich = fmt.Errorf("%w",NewEvent(HEARTBREATING_PANICH,c.UniqueId, "",""))
+	p.warpError_Panich = fmt.Errorf(
+		"%w",NewEvent(HEARTBREATING_PANICH, c.UniqueId, "", nil, ""))
 
 	p.config.News = make(chan []byte)
 	
@@ -95,9 +96,11 @@ func (p *HeartBeating)Construct(heartBeatingConfigAbs Config) error{
 
 func (p *HeartBeating)Run(){
 	p.config.Events <-NewEvent(
-		HEARTBREATING_RUN,p.config.UniqueId,"",fmt.Sprintf("[uid:%s]开始运行，"+
-		"最大超时秒数为%v, 最大超时次数为%v, 该适配器无诸如“Mode”相关的配置参数。",
-		p.config.UniqueId, p.config.TimeoutSec, p.config.Limit))
+		HEARTBREATING_RUN, p.config.UniqueId,"",nil,
+		
+		fmt.Sprintf("节点开始运行，最大超时秒数为%v, 最大超时次数为%v,"+
+		"该适配器无诸如“Mode”相关的配置参数。",
+		p.config.TimeoutSec, p.config.Limit))
 
 	p.timer = time.NewTimer(p.config.TimeoutSec)
 
@@ -111,25 +114,24 @@ func (p *HeartBeating)Run(){
 				if len(p.config.Raws)>0{
 					_ = <-p.config.Raws
 					p.config.Errors <-fmt.Errorf(
-						"%v", NewEvent(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
-						fmt.Sprintf("[uid:%s]发生了“计时器超时下的数据临界事件“,Raws管道已正常排空",
-						p.config.UniqueId))) 
+						"%v", NewEvent(HEARTBREATING_TIMEOUT, p.config.UniqueId, "", nil,
+						"发生了“计时器超时下的数据临界事件“,Raws管道已正常排空")) 
 				}
 
 				if p.countor < p.config.Limit{
 					p.timer.Reset(p.config.TimeoutSec)
 
 					p.config.Errors <-fmt.Errorf(
-						"%v", NewEvent(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
-						fmt.Sprintf("[uid:%s]连续第%d次超时，当前系统设定的最大超时次数为%d",
-						p.config.UniqueId,p.countor,p.config.Limit)))
+						"%v", NewEvent(HEARTBREATING_TIMEOUT, p.config.UniqueId, "", nil,
+						fmt.Sprintf("连续第%d次超时，当前系统设定的最大超时次数为%d",
+						p.countor, p.config.Limit)))
 					
 					p.countor++
 				}else{
 					p.config.Errors <-fmt.Errorf(
-						"%v", NewEvent(HEARTBREATING_TIMEOUT,p.config.UniqueId,"",
-						fmt.Sprintf("[uid:%s]连续第%d次超时已超过系统设定的最大超时次数，"+
-						"系统设定的最大超时次数为%d",p.config.UniqueId, p.countor, p.config.Limit)))
+						"%v", NewEvent(HEARTBREATING_TIMEOUT, p.config.UniqueId, "", nil,
+						fmt.Sprintf("连续第%d次超时已超过系统设定的最大超时次数，"+
+						"系统设定的最大超时次数为%d", p.countor, p.config.Limit)))
 				
 					p.config.Errors <-p.warpError_Panich
 
@@ -146,16 +148,15 @@ func (p *HeartBeating)Run(){
 				if p.timer.Stop() == TIMER_STOPAFTEREXPIRE{ 
 					_ = <-p.timer.C 
 					p.config.Errors <-fmt.Errorf(
-						"%v",NewEvent(HEARTBREATING_TIMERLIMITED, p.config.UniqueId,"",
-						fmt.Sprintf("[uid:%s]发生了“计时器未超时下的数据临界事件”,"+
-						"计时器自身的管道已正常排空",p.config.UniqueId))) 
+						"%v",NewEvent(HEARTBREATING_TIMERLIMITED, p.config.UniqueId, "", nil,
+						"发生了“计时器未超时下的数据临界事件”,计时器自身的管道已正常排空")) 
 				}
 				
 				if p.countor != 0{
 					p.config.Events <-NewEvent(
-						HEARTBREATING_RECOVERED,p.config.UniqueId,"",
-						fmt.Sprintf("[uid:%s]已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
-						p.config.UniqueId, p.countor, p.config.Limit))
+						HEARTBREATING_RECOVERED,p.config.UniqueId, "", nil,
+						fmt.Sprintf("已从第%d次超时中恢复，当前系统设定的最大超时次数为%d",
+						p.countor, p.config.Limit))
 						
 					p.countor =0
 				}
@@ -176,8 +177,8 @@ func (p *HeartBeating)reactiveDestruct(){
 	close(p.config.News)
 
 	p.config.Events <-NewEvent(
-		HEARTBREATING_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))
+		HEARTBREATING_REACTIVE_DESTRUCT,p.config.UniqueId,"",nil,
+		fmt.Sprintf("触发了隐式析构方法"))
 }
 
 func NewHeartbBreating() NodeAbstract {

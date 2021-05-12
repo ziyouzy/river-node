@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"errors"
 	"encoding/binary"
-	"encoding/hex"
+	//"encoding/hex"
 )
 
 
@@ -140,7 +140,7 @@ func (p *CRC)Construct(CRCConfigAbs Config) error{
 	}
 
 	p.bytesHandler 	   = bytes.NewBuffer([]byte{})
-	p.warpError_Panich = fmt.Errorf("%w",NewEvent(CRC_PANICH, c.UniqueId, "", ""))
+	p.warpError_Panich = fmt.Errorf("%w",NewEvent(CRC_PANICH, c.UniqueId, "", nil, ""))
 
 	if p.config.Mode == FILTER{
 		p.config.News_Filter 	= make(chan []byte)
@@ -164,14 +164,18 @@ func (p *CRC)Run(){
 	if p.config.Mode == FILTER{
 		modeStr ="crc校验模式，将通过的结果注入News_Filter管道，不通过的进行转化并注入Errors管道"
 		p.config.Events <-NewEvent(
-			CRC_RUN, p.config.UniqueId, "", fmt.Sprintf("[uid:%s;mode:%s]开始运行，"+
-			"最大校验失败次数为%d,大小端模式为:%s,校验起始下标为:%d", p.config.UniqueId,
-			modeStr, p.config.Limit_Filter, endianStr, p.config.StartIndex_Filter))
+			CRC_RUN, p.config.UniqueId, "", nil,
+
+			fmt.Sprintf("[mode:%s]节点开始运行，最大校验失败次数为%d,大小端模式为:%s,"+
+			"校验起始下标为:%d",modeStr, 
+			p.config.Limit_Filter, endianStr, p.config.StartIndex_Filter))
+
 	}else if p.config.Mode == ADDTAIL{
 		modeStr ="追加crc校验码模式，将追加后生成的modbus码注入News_AddTail管道"
 		p.config.Events <-NewEvent(
-			CRC_RUN, p.config.UniqueId, "", fmt.Sprintf("[uid:%s;mode:%s]开始运行，"+
-			"大小端模式为:%s", p.config.UniqueId, modeStr, endianStr))
+			CRC_RUN, p.config.UniqueId, "", nil,
+			
+			fmt.Sprintf("[mode:%s]节点开始运行，大小端模式为:%s", modeStr, endianStr))
 	}
 
 	switch p.config.Mode{
@@ -219,8 +223,7 @@ func (p *CRC)reactiveDestruct(){
 	}
 
 	p.config.Events <-NewEvent(
-		CRC_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[uid:%s]触发了隐式析构方法", p.config.UniqueId))
+		CRC_REACTIVE_DESTRUCT,p.config.UniqueId, "", nil, "触发了隐式析构方法")
 }
 
 
@@ -253,9 +256,9 @@ func (p *CRC)filter(mb []byte){
 	if bytes.Equal(p.checkCRC16(raw[p.config.StartIndex_Filter:], p.config.Encoding), crc){
 		if p.countor != 0{
 			p.config.Events <-NewEvent(
-				CRC_RECOVERED, p.config.UniqueId, "", 
-				fmt.Sprintf("[uid:%s]已从第%d次CRC校验失败中恢复，"+
-				"当前系统设定的最大失败次数为%d", p.config.UniqueId, 
+				CRC_RECOVERED, p.config.UniqueId, "", nil,
+				 
+				fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d", 
 				p.countor, p.config.Limit_Filter))
 
 			p.countor = 0
@@ -268,17 +271,16 @@ func (p *CRC)filter(mb []byte){
 	}else if bytes.Equal(p.checkCRC16(raw[p.config.StartIndex_Filter:], !p.config.Encoding),crc){
 		if p.countor != 0{
 			p.config.Events <-NewEvent(
-				CRC_RECOVERED, p.config.UniqueId, hex.EncodeToString(raw),
-				fmt.Sprintf("[uid:%s]已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
-				"但是当前这一字节数组存在大小端颠倒的问题",p.config.UniqueId, 
-				p.countor, p.config.Limit_Filter))
+				CRC_RECOVERED, p.config.UniqueId, "", nil,
+
+				fmt.Sprintf("已从第%d次CRC校验失败中恢复，当前系统设定的最大失败次数为%d,"+
+				"但是当前这一字节数组存在大小端颠倒的问题", p.countor, p.config.Limit_Filter))
 
 			p.countor = 0
 		}
 
 		p.config.Errors <-fmt.Errorf(
-			"%v", NewEvent(CRC_UPSIDEDOWN, p.config.UniqueId, 
-			hex.EncodeToString(raw),""))
+			"%v", NewEvent(CRC_UPSIDEDOWN, p.config.UniqueId, fmt.Sprintf("%x",raw),nil, ""))
 
 		p.bytesHandler.Reset()
 		p.bytesHandler.Write(raw)//通过crc校验后，再阉割掉后两位校验位
@@ -288,15 +290,15 @@ func (p *CRC)filter(mb []byte){
 		p.countor++
 
 		p.config.Errors <-fmt.Errorf(
-			"%v", NewEvent(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
-			fmt.Sprintf("[uid:%s]连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
-			p.config.UniqueId, p.countor, p.config.Limit_Filter)))
+			"%v", NewEvent(CRC_NOTPASS, p.config.UniqueId, fmt.Sprintf("%x", mb), nil,
+			fmt.Sprintf("连续第%d次CRC校验失败，当前系统设定的最大连续失败次数为%d",
+			p.countor, p.config.Limit_Filter)))
 		// 未通过校验的数据(错误数据)不再放入任何管道
 	}else{
 		p.config.Errors <-fmt.Errorf(
-			"%v", NewEvent(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
-			fmt.Sprintf("[uid:%s]CRC验证连续%d次失败，已超过系统设定的最大次数，"+
-			"系统设定的最大连续失败次数为%d",p.config.UniqueId, p.countor,p.config.Limit_Filter)))
+			"%v", NewEvent(CRC_NOTPASS, p.config.UniqueId, fmt.Sprintf("%x",mb), nil,
+			fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，"+
+			"系统设定的最大连续失败次数为%d", p.countor,p.config.Limit_Filter)))
 
 		// 未通过校验的数据(错误数据)不再放入任何管道)
 
@@ -311,9 +313,8 @@ func (p *CRC)addTail(raw []byte){
 	var tail []byte
 	if tail = p.checkCRC16(raw, p.config.Encoding); tail ==nil{
 		p.config.Errors <-fmt.Errorf(
-			"%v",NewEvent(CRC_CHECKFAIL, p.config.UniqueId, hex.EncodeToString(raw), 
-			fmt.Sprintf("[uid:%s](ADDTAIL模式)生成了空的校验码,问题校验码", 
-			p.config.UniqueId)))
+			"%v",NewEvent(CRC_CHECKFAIL, p.config.UniqueId, fmt.Sprintf("%x",raw), nil, 
+			"(ADDTAIL模式)生成了空的校验码,问题校验码"))
 
 		return
 	}

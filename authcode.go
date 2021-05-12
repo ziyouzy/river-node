@@ -118,7 +118,7 @@ func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 	p.authcode = go_authcode.New(
 		p.config.AuthCode_Key, p.config.AuthCode_DynamicKeyLen, p.config.AuthCode_ExpirySec)
 
-	p.warpError_Panich = fmt.Errorf("%w",NewEvent(AUTHCODE_PANICH, c.UniqueId, "", ""))
+	p.warpError_Panich = fmt.Errorf("%w",NewEvent(AUTHCODE_PANICH, c.UniqueId, "", nil, ""))
 
 	if p.config.Mode == ENCODE{
 		p.config.News_Encode = make(chan []byte)
@@ -136,13 +136,13 @@ func (p *AuthCode)Run(){
 	if p.config.Mode == ENCODE{
 		modeStr ="authcode为加密模式，将加密后的数据注入News_Encode管道"
 		p.config.Events <-NewEvent(
-			AUTHCODE_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("[uid:%s;mode:%s]开始运行",p.config.UniqueId, modeStr))
+			AUTHCODE_RUN,p.config.UniqueId,"",nil,
+			fmt.Sprintf("[mode:%s]节点开始运行", modeStr))
 	}else if p.config.Mode == DECODE{
 		modeStr ="authcode为解密模式，将解密后的数据注入News_Decode管道"
 		p.config.Events <-NewEvent(
-			AUTHCODE_RUN,p.config.UniqueId,"",
-			fmt.Sprintf("[uid:%s;mode:%s]开始运行", p.config.UniqueId, modeStr))
+			AUTHCODE_RUN,p.config.UniqueId,"",nil,
+			fmt.Sprintf("[mode:%s]节点开始运行", modeStr))
 	}
 
 	switch p.config.Mode{
@@ -191,8 +191,8 @@ func (p *AuthCode)reactiveDestruct(){
 	}
 
 	p.config.Events <-NewEvent(
-		AUTHCODE_REACTIVE_DESTRUCT,p.config.UniqueId,"",
-		fmt.Sprintf("[uid:%s]触发了隐式析构方法",p.config.UniqueId))
+		AUTHCODE_REACTIVE_DESTRUCT,p.config.UniqueId,"",nil,
+		"触发了隐式析构方法")
 }
 
 
@@ -218,9 +218,10 @@ func (p *AuthCode)encode(baits []byte){
 		if p.countor > p.config.Limit_Encode{
 			p.config.Errors <-fmt.Errorf(
 				"%v",NewEvent(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, 
-				fmt.Sprintf("%x",baits), fmt.Sprintf("[uid:%s]连续%d次加密失败，"+
-				"已超过系统设定的最大次数，系统设定的最大连续失败次数为%d,[报错内容为%s]",
-				p.config.UniqueId, p.countor, p.config.Limit_Encode, err.Error())))
+				fmt.Sprintf("%x",baits), err,
+
+				fmt.Sprintf("连续%d次加密失败，已超过系统设定的最大次数，"+
+				"系统设定的最大连续失败次数为%d", p.countor, p.config.Limit_Encode)))
 
 			p.config.Errors <-p.warpError_Panich
 
@@ -228,18 +229,19 @@ func (p *AuthCode)encode(baits []byte){
 		}else{
 			p.config.Errors <-fmt.Errorf(
 				"%v",NewEvent(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, 
-				fmt.Sprintf("%x",baits), fmt.Sprintf("[uid:%s]连续第%d次加密失败，"+
-				"当前系统设定的最大连续失败次数为%d,[报错内容为%s]",
-				p.config.UniqueId, p.countor, p.config.Limit_Encode, err.Error())))
+				fmt.Sprintf("%x",baits), err,
+				
+				fmt.Sprintf("连续第%d次加密失败，当前系统设定的最大连续失败次数为%d",
+				p.countor, p.config.Limit_Encode)))
 		}
 	}else{
 		p.config.News_Encode <- res
 
 		if p.countor !=0{
 			p.config.Events <-NewEvent(
-				AUTHCODE_ENCODE_RECOVERED, p.config.UniqueId, "", 
-				fmt.Sprintf("[uid:%s]已从第%d次加密失败中恢复，当前系统设定的最大失败次数为%d",
-				p.config.UniqueId, p.countor, p.config.Limit_Encode))
+				AUTHCODE_ENCODE_RECOVERED, p.config.UniqueId, "", nil,
+				fmt.Sprintf("已从第%d次加密失败中恢复，当前系统设定的最大失败次数为%d",
+				p.countor, p.config.Limit_Encode))
 
 			p.countor =0
 		}
@@ -254,9 +256,10 @@ func (p *AuthCode)decode(baits []byte){
 		if p.countor > p.config.Limit_Decode{
 			p.config.Errors <-fmt.Errorf(
 				"%v", NewEvent(AUTHCODE_DECODE_FAIL, p.config.UniqueId, 
-				fmt.Sprintf("%x",baits), fmt.Sprintf("[uid:%s]连续%d次解密失败，"+
-				"已超过系统设定的最大次数，系统设定的最大连续失败次数为%d,[报错内容为%s]",
-				p.config.UniqueId, p.countor,p.config.Limit_Decode,err.Error())))
+				fmt.Sprintf("%x",baits), err,
+				
+				fmt.Sprintf("连续%d次解密失败，已超过系统设定的最大次数，"+
+				"系统设定的最大连续失败次数为%d",p.countor,p.config.Limit_Decode)))
 
 			p.config.Errors <-p.warpError_Panich
 
@@ -264,9 +267,11 @@ func (p *AuthCode)decode(baits []byte){
 		}else{
 
 			p.config.Errors <-fmt.Errorf(
-				"%v", NewEvent(AUTHCODE_DECODE_FAIL, p.config.UniqueId, fmt.Sprintf("%x",baits),
-				fmt.Sprintf("[uid:%s]连续%d次解密失败，当前系统设定的最大连续失败次数为%d,[报错内容为%s]",
-				p.config.UniqueId, p.countor, p.config.Limit_Decode,err.Error())))
+				"%v", NewEvent(AUTHCODE_DECODE_FAIL, p.config.UniqueId, 
+				fmt.Sprintf("%x",baits), err,
+
+				fmt.Sprintf("连续%d次解密失败，当前系统设定的最大连续失败次数为%d",
+				p.countor, p.config.Limit_Decode)))
 		}
 		
 	}else{
@@ -274,9 +279,9 @@ func (p *AuthCode)decode(baits []byte){
 
 		if p.countor !=0{
 			p.config.Events <-NewEvent(
-				AUTHCODE_DECODE_RECOVERED, p.config.UniqueId,"", 
-				fmt.Sprintf("[uid:%s]已从第%d次解密失败中恢复，当前系统设定的最大失败次数为%d",
-				p.config.UniqueId,p.countor,p.config.Limit_Decode))
+				AUTHCODE_DECODE_RECOVERED, p.config.UniqueId,"",nil, 
+				fmt.Sprintf("已从第%d次解密失败中恢复，当前系统设定的最大失败次数为%d",
+				p.countor,p.config.Limit_Decode))
 
 			p.countor =0
 		}

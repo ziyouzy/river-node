@@ -45,40 +45,48 @@ const (
 type EventAbs interface{
 	CodeString()string
 	CodeInt() int
-	Description()(int, string,string,string,string,int64)
+	Description()(int, string,string,string,error,string,int64)
 	ParentRiverUID() string
+
 	Error() string
+	Unwrap() error
 }
 
-func NewEvent(code int, uniqueId string, raw string, commit string) EventAbs{
+func NewEvent(code int, uniqueId string, 
+	commentRaw string, commentError error, commentText string) EventAbs{
+
+	//code默认为0
+
 	if uniqueId =="" { return nil }
 
-	if raw == "" {
-		raw = "N/A"
-	} else {
-		commit = fmt.Sprintf("[Data not N/A] %s", commit)
-	}
+	if commentRaw == "" {commentRaw = "commentRaw is nil"}
 
-	if commit == "" {
-		commit = "N/A"
-	}
+	//if commentError ==nil {...}
+
+	if commentText == "" {commentText = "commentText is nil"}
+
 
 	return &Event{
 		UniqueId: 		uniqueId,
 		Code: 			code,
-		MistakenRaw:	raw,
-		Commit:			commit,
+
+		CommentRaw:		commentRaw,
+		CommentError:	commentError,
+		CommentText:	commentText,
 
 		TimeStamp:		time.Now().UnixNano(),
 	}
 	
 }
 
+//似乎需要添加error字段，并实现Unwarp方法，从而让Event能够“功能完整的包裹"一个error
 type Event struct{
 	UniqueId 		string
 	Code 	 		int
-	MistakenRaw	 	string
-	Commit 	 		string
+
+	CommentRaw		string
+	CommentError	error
+	CommentText		string
 	
 	TimeStamp		int64
 }
@@ -151,12 +159,27 @@ func (p *Event)CodeString()string{
 	}
 }
 
-func (p *Event)Description()(int, string, string, string, string, int64){
-	return p.Code, p.CodeString(), p.UniqueId, p.MistakenRaw, p.Commit, p.TimeStamp
+func (p *Event)Description()(int, string, string, 
+	string, error, string, int64){
+
+		return p.Code, p.CodeString(), p.UniqueId, 
+			p.CommentRaw, p.CommentError, p.CommentText, p.TimeStamp
 }
 
 func (p *Event)Error() string {
-	c, cs, uid, mistakenRaw, commit, t:= p.Description()
-	return fmt.Sprintf("[ERROR] Code: %d, CodeString: %s, UniqueId: %s, DataString: %s, "+
-		"Commit: %s, Time: %s", c, cs, uid, mistakenRaw, commit, time.Unix(0, t).Format("2006-01-02 15:04:05.000000000"))
+
+	c, cStr, uid, rawStr, err, textStr, t:= p.Description()
+
+	errStr :="commentError is nil";	if err !=nil{errStr =err.Error()}
+
+	return fmt.Sprintf("[RIVER_NODE_ERROR] CodeInt: %d, CodeString: %s, UniqueId: %s, "+
+		"CommentRawString: %s, CommentErrorString: %s, CommentTextString: %s,  "+
+		"[Time: %s]", c, cStr, uid, rawStr, errStr, textStr, 
+		time.Unix(0, t).Format("2006-01-02 15:04:05.000000000"))
+
+}
+
+
+func (p *Event) Unwrap() error {
+	return p.CommentError
 }
