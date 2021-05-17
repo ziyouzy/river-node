@@ -126,6 +126,8 @@ func (p *Event)CodeString()string{
 		return "CRC_NOTPASS"
 	case CRC_CHECKFAIL:
 		return "CRC_CHECKFAIL"
+	case CRC_RECOVERED:
+		return "CRC_RECOVERED"
 	case CRC_REACTIVE_DESTRUCT:
 		return "CRC_REACTIVE_DESTRUCT"
 
@@ -137,6 +139,8 @@ func (p *Event)CodeString()string{
 		return "AUTHCODE_ENCODE_FAIL"
 	case AUTHCODE_DECODE_FAIL:
 		return "AUTHCODE_DECODE_FAIL"
+	case AUTHCODE_RECOVERED:
+		return "AUTHCODE_RECOVERED"
 	case AUTHCODE_REACTIVE_DESTRUCT:
 		return "AUTHCODE_REACTIVE_DESTRUCT"
 

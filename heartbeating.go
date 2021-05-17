@@ -99,8 +99,8 @@ func (p *HeartBeating)Run(){
 		HEARTBREATING_RUN, p.config.UniqueId,"",nil,
 		
 		fmt.Sprintf("节点开始运行，最大超时秒数为%v, 最大超时次数为%d,"+
-		"该适配器无诸如“Mode”相关的配置参数。",
-		p.config.TimeoutSec, p.config.Limit))
+			"该适配器无诸如“Mode”相关的配置参数。",
+			p.config.TimeoutSec, p.config.Limit))
 
 	p.timer = time.NewTimer(p.config.TimeoutSec)
 
