@@ -98,7 +98,7 @@ func (p *HeartBeating)Run(){
 	p.config.Events <-NewEvent(
 		HEARTBREATING_RUN, p.config.UniqueId,"",nil,
 		
-		fmt.Sprintf("节点开始运行，最大超时秒数为%v, 最大超时次数为%v,"+
+		fmt.Sprintf("节点开始运行，最大超时秒数为%v, 最大超时次数为%d,"+
 		"该适配器无诸如“Mode”相关的配置参数。",
 		p.config.TimeoutSec, p.config.Limit))
 
@@ -114,7 +114,7 @@ func (p *HeartBeating)Run(){
 				if len(p.config.Raws)>0{
 					_ = <-p.config.Raws
 					p.config.Errors <-fmt.Errorf(
-						"%v", NewEvent(HEARTBREATING_TIMEOUT, p.config.UniqueId, "", nil,
+						"%v", NewEvent(HEARTBREATING_TIMERLIMITED, p.config.UniqueId, "", nil,
 						"发生了“计时器超时下的数据临界事件“,Raws管道已正常排空")) 
 				}
 
@@ -134,14 +134,22 @@ func (p *HeartBeating)Run(){
 						"系统设定的最大超时次数为%d", p.countor, p.config.Limit)))
 				
 					p.config.Errors <-p.warpError_Panich
+					p.countor =-1
 
-					p.countor =0
-					return
 				}
 
 			//心跳包未超时
 			case baits, ok :=<-p.config.Raws:
-				if !ok { return }
+				if !ok { 
+					return 
+				}
+
+				//被析构前夕的等待状态
+				if p.countor <0{
+					_ =baits
+					continue
+				}
+
 				p.config.News<-baits
 
 				/*Reset一个timer前必须先正确的关闭它*/

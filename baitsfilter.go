@@ -30,7 +30,6 @@ type BaitsFilterConfig struct{
 	
 	Raws 		      			chan []byte /*从主线程发来的信号队列，就像Qt的信号与槽*/
 
-
 	News_KeepHead				chan []byte
 	News_DropHead				chan []byte
 }
@@ -224,6 +223,7 @@ func (p *BaitsFilter)dropHead(baits []byte){
 		"发现了报头未知的Baits"))
 }
 
+//注意，判断是的整体baits的长度，而不是head的长度
 func (p *BaitsFilter)lenAuth(len int)bool{
 	if p.config.Len_max ==0&&p.config.Len_min ==0{return true}
 

@@ -154,9 +154,15 @@ func (p *AuthCode)Run(){
 				case raw, ok := <-p.config.Raws:
 					if !ok{
 						return
-					}else{
-						p.encode(raw)
 					}
+					
+					//被析构前夕的等待状态
+					if p.countor<0{
+						_ =raw
+						continue
+					}
+					
+					p.encode(raw)
 				}
 			}
 		}()
@@ -168,9 +174,16 @@ func (p *AuthCode)Run(){
 				case raw, ok := <-p.config.Raws:
 					if !ok{
 						return
-					}else{
-						p.decode(raw)
 					}
+
+					//被析构前夕的等待状态
+					if p.countor<0{
+						_ =raw
+						continue
+					}
+						
+					p.decode(raw)
+					
 				}
 			}
 		}()
@@ -224,8 +237,8 @@ func (p *AuthCode)encode(baits []byte){
 				"系统设定的最大连续失败次数为%d", p.countor, p.config.Limit_Encode)))
 
 			p.config.Errors <-p.warpError_Panich
+			p.countor =-1
 
-			p.countor =0
 		}else{
 			p.config.Errors <-fmt.Errorf(
 				"%v",NewEvent(AUTHCODE_ENCODE_FAIL, p.config.UniqueId, 
@@ -262,8 +275,8 @@ func (p *AuthCode)decode(baits []byte){
 				"系统设定的最大连续失败次数为%d",p.countor,p.config.Limit_Decode)))
 
 			p.config.Errors <-p.warpError_Panich
-
-			p.countor =0		
+			p.countor =-1	
+				
 		}else{
 
 			p.config.Errors <-fmt.Errorf(

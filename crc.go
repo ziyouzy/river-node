@@ -187,9 +187,15 @@ func (p *CRC)Run(){
 				case mb, ok := <-p.config.Raws:
 					if !ok{
 						return
-					}else{
-						p.filter(mb)
 					}
+					
+					//被析构前夕的等待状态
+					if p.countor <0{
+						_ =mb
+						continue
+					}
+
+					p.filter(mb)
 				}
 			}
 		}()
@@ -201,9 +207,15 @@ func (p *CRC)Run(){
 				case raw, ok := <-p.config.Raws:
 					if !ok{
 						return
-					}else{
-						p.addTail(raw)
 					}
+
+					//被析构前夕的等待状态
+					if p.countor <0{
+						_ =raw
+						continue
+					}
+
+					p.addTail(raw)
 				}
 			}
 		}()
@@ -241,16 +253,6 @@ func init() {
 
 
 func (p *CRC)filter(mb []byte){
-	//不该存在这一基于长度的判定，这是baitsfilter的职责内容
-	// if len(mb) < p.config.MinLen_Filter{
-
-	// 	p.config.Errors<-fmt.Errorf("%v",NewEvent(CRC_NOTPASS, p.config.UniqueId, hex.EncodeToString(mb),
-	// 		fmt.Sprintf("[uid:%s]待验证的modbus码不足所设定的最少位数：%d位，",
-	// 		p.config.UniqueId, p.config.MinLen_Filter)))
-	
-	// 	return
-	// }
-
 	raw,crc := p.midModbus(mb) 
 
 	if bytes.Equal(p.checkCRC16(raw[p.config.StartIndex_Filter:], p.config.Encoding), crc){
@@ -300,11 +302,9 @@ func (p *CRC)filter(mb []byte){
 			fmt.Sprintf("CRC验证连续%d次失败，已超过系统设定的最大次数，"+
 			"系统设定的最大连续失败次数为%d", p.countor,p.config.Limit_Filter)))
 
-		// 未通过校验的数据(错误数据)不再放入任何管道)
 
 		p.config.Errors <-p.warpError_Panich
-
-		p.countor =0
+		p.countor =-1
 	}
 }
 
