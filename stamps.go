@@ -95,8 +95,8 @@ func (p *Stamps)Construct(stampsConfigAbs Config) error{
 
 	if len(c.Breaking)<3{
 		return errors.New(
-			fmt.Sprintf("[uid:%s] init error, Breaking is to short, please len(Breaking) >= 3",
-			c.UniqueId))
+			fmt.Sprintf("[uid:%s] init error, Breaking len == %d len is to short, please len(Breaking)>= 3",
+			c.UniqueId,len(c.Breaking)))
 	}
 
 	if c.Mode != HEADSANDTAILS && c.Mode != HEADS && c.Mode != TAILS{

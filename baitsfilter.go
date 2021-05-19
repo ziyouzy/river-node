@@ -189,7 +189,7 @@ func init() {
 
 /*------------以下是所需的功能方法-------------*/
 func (p *BaitsFilter)keepHead(baits []byte){
-	if !p.lenAuth(len(baits)){return}
+	if !p.lenAuth(baits){return}
 
 	for _, head := range p.config.Heads{
 		//子字符串首次出现的位置，没有则返回-1，有则从零开始汇报发现的起始位置
@@ -206,7 +206,7 @@ func (p *BaitsFilter)keepHead(baits []byte){
 }
 
 func (p *BaitsFilter)dropHead(baits []byte){
-	if !p.lenAuth(len(baits)){return}
+	if !p.lenAuth(baits){return}
 
 	for _, head := range p.config.Heads{
 		//子字符串首次出现的位置，没有则返回-1，有则从零开始汇报发现的起始位置
@@ -224,18 +224,17 @@ func (p *BaitsFilter)dropHead(baits []byte){
 }
 
 //注意，判断是的整体baits的长度，而不是head的长度
-func (p *BaitsFilter)lenAuth(len int)bool{
+func (p *BaitsFilter)lenAuth(baits []byte)bool{
+	l :=len(baits)
 	if p.config.Len_max ==0&&p.config.Len_min ==0{return true}
 
-	if p.config.Len_max >= len&&p.config.Len_min <= len{
+	if p.config.Len_max >= l&&p.config.Len_min <= l{
 		return true
 	}else{
 		p.config.Errors <-fmt.Errorf(
-			"%w", NewEvent(BAITSFILTER_LENAUTHFAIL, p.config.UniqueId, "", nil, 
-
-			fmt.Sprintf("发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
-			"最大长度为%d,然而baits长度为%d",
-			p.config.Len_min, p.config.Len_max, len)))
+			"%w", NewEvent(BAITSFILTER_LENAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x", baits), 
+			nil, fmt.Sprintf("发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
+					"最大长度为%d,然而baits长度为%d",p.config.Len_min, p.config.Len_max, l)))
 
 		return false
 	}

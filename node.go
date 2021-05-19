@@ -19,6 +19,7 @@ package river_node
 
 var RegisteredNodes = make(map[string]NodeAbstractFunc)
 func Register(Name string, F NodeAbstractFunc) {
+
 	if RegisteredNodes[Name] != nil {
 		panic("river-node: " + Name + " already registered!")
 	}
