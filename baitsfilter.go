@@ -110,18 +110,23 @@ func (p *BaitsFilter)Construct(BaitsFilterConfigAbs Config) error{
 
 
 func (p *BaitsFilter)Run(){
+	fmt.Println("!!!!!baitsfilter_1!!!!!!")
 	modeStr := ""
+	fmt.Println("!!!!!baitsfilter_1!!!!!!")
 	if p.config.Mode == KEEPHEAD{
+		fmt.Println("!!!!!baitsfilter_KEEPHEAD_2!!!!!!")
 		modeStr ="baitsfilter所适配的模式将保留用来判定/识别的head，数据会注入News_KeepHead管道"
 		p.config.Events <-NewEvent(
 			BAITSFILTER_RUN,p.config.UniqueId,"",nil,
 			fmt.Sprintf("[mode:%s]节点开始运行",modeStr))
 	}else if p.config.Mode == DROPHEAD{
+		fmt.Println("!!!!!baitsfilter_DROPHEAD_2!!!!!!")
 		modeStr ="baitsfilter所适配的模式将丢弃用来判定/识别的head，数据会注入News_DropHead管道"
 		p.config.Events <-NewEvent(
 			BAITSFILTER_RUN,p.config.UniqueId,"",nil,
 			fmt.Sprintf("[mode:%s]节点开始运行", modeStr))
 	}
+	fmt.Println("!!!!!baitsfilter_3!!!!!!")
 
 	switch p.config.Mode{
 	case KEEPHEAD:
