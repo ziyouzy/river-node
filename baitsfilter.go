@@ -217,7 +217,7 @@ func (p *BaitsFilter)dropHead(baits []byte){
 		//子字符串首次出现的位置，没有则返回-1，有则从零开始汇报发现的起始位置
 		if bytes.Index(baits, head)==0{
 			//纯粹的删除左侧某些字段
-			baits =bytes.TrimLeft(baits, string(head))
+			baits =baits[len(head):]
 			p.config.News_DropHead <-baits
 			return
 		}
