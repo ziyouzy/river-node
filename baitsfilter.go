@@ -148,6 +148,15 @@ func (p *BaitsFilter)Run(){
 			defer p.reactiveDestruct()
 			for {
 				select{
+				//出问题的baits是可以被这句case接收的，因此外层的subch不会阻塞
+				//或者说这里的p.config.Raws等同于subch
+				//但是再进行ch<-的操作时，case就没法过来承接了(被上一个raw阻塞于p.DropHead(raw))
+				//于是就导致了接下来的一系列问题：
+
+				//比如新的FlutterUI_Receiver的_RUN信号，他也是需要广播给这里的，于是会被阻塞
+				//而FlutterUI_Receiver内部的AUTHCODE_RUN
+
+				//其实这一系列问题的根源也不是很复杂，只是因为全局的“EEBox”分析树被阻塞了
 				case raw, ok := <-p.config.Raws:
 					if !ok{
 						return
@@ -231,16 +240,23 @@ func (p *BaitsFilter)dropHead(baits []byte){
 //注意，判断是的整体baits的长度，而不是head的长度
 func (p *BaitsFilter)lenAuth(baits []byte)bool{
 	l :=len(baits)
+
 	if p.config.Len_max ==0&&p.config.Len_min ==0{return true}
 
 	if p.config.Len_max >= l&&p.config.Len_min <= l{
 		return true
 	}else{
+		fmt.Println("哎？,l==",l)
+
+		fmt.Println(fmt.Errorf("%v",NewEvent(BAITSFILTER_LENAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x", baits), 
+			nil, fmt.Sprintf("发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
+			"最大长度为%d,然而baits长度为%d",p.config.Len_min, p.config.Len_max, l))))
+
 		p.config.Errors <-fmt.Errorf(
 			"%w", NewEvent(BAITSFILTER_LENAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x", baits), 
 			nil, fmt.Sprintf("发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
 					"最大长度为%d,然而baits长度为%d",p.config.Len_min, p.config.Len_max, l)))
-
+		fmt.Println("哎！！！")
 		return false
 	}
 }

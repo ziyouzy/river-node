@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	Events  chan Event
+	Events  chan EventAbs
 	Errors  chan error
 )
 
@@ -20,7 +20,7 @@ var (
 func TestBaitsFilter(t *testing.T) {
 	defer logger.Destory()
 	
-	Events  = make(chan Event)
+	Events  = make(chan EventAbs)
 	Errors  = make(chan error)
 
 	raws	= make(chan []byte)
@@ -31,9 +31,9 @@ func TestBaitsFilter(t *testing.T) {
 		 	case eve := <-Events:
 				/*最重要的是，触发某个事件后，接下来去做什么*/
 				fmt.Println("Recriver-event:",eve.CodeString())
-				c, cs, uid, data, commit, t:=eve.Description() 
-				fmt.Println("Recriver-event-details:", c, cs, uid, data, commit, t)
-				fmt.Println("Recriver-event-toError:",eve.ToError().Error()) 
+				c, cs, uid, data, commit, err ,t:=eve.Description() 
+				fmt.Println("Recriver-event-details:", c, cs, uid, data, commit, err,t)
+				fmt.Println("Recriver-event-toError:",eve.Error()) 
 		 	case err := <-Errors:
 				fmt.Println("Recriver-error:",err.Error())
 				//实战中这里会进行日志的记录
@@ -52,7 +52,7 @@ func TestBaitsFilter(t *testing.T) {
 
 		Mode: 			  			DROPHEAD,
 		Heads:						[][]byte{[]byte("test1"),[]byte("test2"),[]byte("test3"),},
-		Len_max:					100,
+		Len_max:					15,
 		Len_min:					0,
 	
 		Raws: 		      			raws,
@@ -78,7 +78,7 @@ func TestBaitsFilter(t *testing.T) {
 			time.Sleep(time.Second)
 			raws <- []byte("test11abcdefghic")
 			time.Sleep(time.Second)
-			raws <- []byte("test21abcdefghic")
+			raws <- []byte("test21abcdefghicskdflskjdflskdjfslkdjfsldkjfsldkjfsdlkfc")
 			time.Sleep(time.Second)
 			raws <- []byte("test31abcdefghic")
 			time.Sleep(time.Second)
