@@ -132,23 +132,18 @@ func (p *AuthCode)Construct(AuthCodeConfigAbs Config) error{
 
 
 func (p *AuthCode)Run(){
-	fmt.Println("!!!!!authcode_1!!!!!!")
 	modeStr := ""
-	fmt.Println("!!!!!authcode_1!!!!!!")
 	if p.config.Mode == ENCODE{
-		fmt.Println("!!!!!authcode_ENCODE_2!!!!!!")
 		modeStr ="authcode为加密模式，将加密后的数据注入News_Encode管道"
 		p.config.Events <-NewEvent(
 			AUTHCODE_RUN,p.config.UniqueId,"",nil,
 			fmt.Sprintf("[mode:%s]节点开始运行", modeStr))
 	}else if p.config.Mode == DECODE{
-		fmt.Println("!!!!!authcode_DECODE_2!!!!!!")
 		modeStr ="authcode为解密模式，将解密后的数据注入News_Decode管道"
 		p.config.Events <-NewEvent(
 			AUTHCODE_RUN,p.config.UniqueId,"",nil,
 			fmt.Sprintf("[mode:%s]节点开始运行", modeStr))
 	}
-	fmt.Println("!!!!!authcode_3!!!!!!")
 
 	switch p.config.Mode{
 	case ENCODE:

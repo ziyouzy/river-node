@@ -49,7 +49,7 @@ type BaitsFilter struct{
 	/*此包只用来作为纯粹的过滤操作，而对于Panich这样的逻辑应该留给HeartBeating去完成*/
 	/*不过authcode与crc还是有必要设计出基于“失败次数”触发panich的业务逻辑的*/
 	/*因为“次数超限”和“时间超限”是两种“本质不同”的意义体现*/
-	/*对于BaitsFilter来说，“无上限原则”是他本应具备的属性*/
+	/*对于BaitsFilter来说，“错误次数(countor)无上限原则”是他本应具备的属性*/
 	//warpError_Panich	error
 }
 
@@ -110,23 +110,18 @@ func (p *BaitsFilter)Construct(BaitsFilterConfigAbs Config) error{
 
 
 func (p *BaitsFilter)Run(){
-	fmt.Println("!!!!!baitsfilter_1!!!!!!")
 	modeStr := ""
-	fmt.Println("!!!!!baitsfilter_1!!!!!!")
 	if p.config.Mode == KEEPHEAD{
-		fmt.Println("!!!!!baitsfilter_KEEPHEAD_2!!!!!!")
 		modeStr ="baitsfilter所适配的模式将保留用来判定/识别的head，数据会注入News_KeepHead管道"
 		p.config.Events <-NewEvent(
 			BAITSFILTER_RUN,p.config.UniqueId,"",nil,
 			fmt.Sprintf("[mode:%s]节点开始运行",modeStr))
 	}else if p.config.Mode == DROPHEAD{
-		fmt.Println("!!!!!baitsfilter_DROPHEAD_2!!!!!!")
 		modeStr ="baitsfilter所适配的模式将丢弃用来判定/识别的head，数据会注入News_DropHead管道"
 		p.config.Events <-NewEvent(
 			BAITSFILTER_RUN,p.config.UniqueId,"",nil,
 			fmt.Sprintf("[mode:%s]节点开始运行", modeStr))
 	}
-	fmt.Println("!!!!!baitsfilter_3!!!!!!")
 
 	switch p.config.Mode{
 	case KEEPHEAD:
@@ -148,15 +143,7 @@ func (p *BaitsFilter)Run(){
 			defer p.reactiveDestruct()
 			for {
 				select{
-				//出问题的baits是可以被这句case接收的，因此外层的subch不会阻塞
-				//或者说这里的p.config.Raws等同于subch
-				//但是再进行ch<-的操作时，case就没法过来承接了(被上一个raw阻塞于p.DropHead(raw))
-				//于是就导致了接下来的一系列问题：
-
-				//比如新的FlutterUI_Receiver的_RUN信号，他也是需要广播给这里的，于是会被阻塞
-				//而FlutterUI_Receiver内部的AUTHCODE_RUN
-
-				//其实这一系列问题的根源也不是很复杂，只是因为全局的“EEBox”分析树被阻塞了
+				
 				case raw, ok := <-p.config.Raws:
 					if !ok{
 						return
@@ -246,17 +233,10 @@ func (p *BaitsFilter)lenAuth(baits []byte)bool{
 	if p.config.Len_max >= l&&p.config.Len_min <= l{
 		return true
 	}else{
-		fmt.Println("哎？,l==",l)
-
-		fmt.Println(fmt.Errorf("%v",NewEvent(BAITSFILTER_LENAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x", baits), 
-			nil, fmt.Sprintf("发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
-			"最大长度为%d,然而baits长度为%d",p.config.Len_min, p.config.Len_max, l))))
-
 		p.config.Errors <-fmt.Errorf(
 			"%w", NewEvent(BAITSFILTER_LENAUTHFAIL, p.config.UniqueId, fmt.Sprintf("%x", baits), 
 			nil, fmt.Sprintf("发现了不符合长度标准的baits，当前设定的最小长度为%d,"+
 					"最大长度为%d,然而baits长度为%d",p.config.Len_min, p.config.Len_max, l)))
-		fmt.Println("哎！！！")
 		return false
 	}
 }

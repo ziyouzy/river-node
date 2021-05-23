@@ -12,6 +12,13 @@
    并在进行初始化时先存入map实现预编译的效果，最终实现上层的调用
  */
 
+ /*所有river-node所产生的event和error，在主系统中的处理方式需遵循如下原则：*/
+ //1.Errors和Events均禁止被发送给客户端
+ //2.整体系统可基于river-node的错误采取后续策略(如p.warpError_Panich；BAITSFILTER_LENAUTHFAIL->river success)
+ //3.整体系统不可基于river-node的event采取后续策略
+ //4.所有river-node的event唯一的后续策略只有记录日志
+ //这么规定另一个好处是可以让eebox中的eventbox变得简单
+
 
 package river_node
 
